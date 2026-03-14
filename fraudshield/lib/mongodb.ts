@@ -1,6 +1,7 @@
 import { MongoClient } from "mongodb";
 
 const uri = process.env.MONGODB_URI ?? "";
+const defaultDbName = process.env.MONGODB_DB ?? "northmaple_bank_demo";
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
@@ -25,7 +26,7 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client.connect();
 }
 
-export async function getDb(dbName = "northmaple_bank_demo") {
+export async function getDb(dbName = defaultDbName) {
   const connection = await clientPromise;
   return connection.db(dbName);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   createContext,
   startTransition,
   useContext,
@@ -15,6 +16,7 @@ import {
   type AlertRecord,
   type AlertStatus,
   type AnalystDecision,
+  type AnalystOutcome,
   type CasePriority,
   type CaseRecord,
   type CaseStatus,
@@ -40,18 +42,21 @@ const emptySnapshot: FraudDashboardSnapshot = {
   sessions: [],
   alerts: [],
   cases: [],
-  mode: "mock",
+  monitoring: null,
+  mode: "live",
   updatedAt: new Date(0).toISOString()
 };
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
+const defaultAnalyst =
+  (process.env.NEXT_PUBLIC_DEFAULT_ANALYST ?? "").trim() || "Unassigned";
 
 function getCasePriority(score: number): CasePriority {
-  if (score >= 80) {
+  if (score >= 75) {
     return "Critical";
   }
 
-  if (score >= 60) {
+  if (score >= 55) {
     return "High";
   }
 
@@ -123,6 +128,31 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     localCases
   );
 
+  const persistFeedback = useCallback(
+    async (payload: {
+      sessionId: string;
+      analystDecision?: AnalystDecision;
+      outcome?: AnalystOutcome;
+      caseStatus?: CaseStatus;
+      notes?: string;
+    }) => {
+      try {
+        await fetch("/api/fraud/feedback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[FraudShield] Unable to persist feedback", payload, error);
+        }
+      }
+    },
+    []
+  );
+
   const refresh = async () => {
     if (refreshInFlightRef.current) {
       return;
@@ -181,6 +211,13 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
 
       return next;
     });
+
+    void persistFeedback({
+      sessionId,
+      analystDecision: "Safe",
+      outcome: "legit",
+      caseStatus: "Resolved"
+    });
   };
 
   const flagSessionForReview = (sessionId: string) => {
@@ -199,6 +236,12 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         });
 
       return next;
+    });
+
+    void persistFeedback({
+      sessionId,
+      analystDecision: "Review",
+      outcome: "unresolved"
     });
   };
 
@@ -230,7 +273,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         id: `CASE-${Date.now().toString().slice(-4)}`,
         sessionId,
         priority: getCasePriority(session.summary.currentRiskScore),
-        assignedAnalyst: "Jordan Lee",
+        assignedAnalyst: defaultAnalyst,
         createdTime: new Date().toISOString(),
         status: "Open",
         summary: `Escalated from session review for ${session.summary.topFlags.join(", ")}.`
@@ -250,6 +293,13 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
 
       return next;
     });
+
+    void persistFeedback({
+      sessionId,
+      analystDecision: "Escalated",
+      outcome: "unresolved",
+      caseStatus: existingCase ? "Investigating" : "Open"
+    });
   };
 
   const updateCaseStatus = (caseId: string, status: CaseStatus) => {
@@ -257,6 +307,35 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       ...current,
       [caseId]: status
     }));
+
+    const caseRecord = dashboardData.cases.find((candidate) => candidate.id === caseId);
+    if (!caseRecord) {
+      return;
+    }
+
+    const session =
+      dashboardData.sessions.find(
+        (candidate) => candidate.sessionId === caseRecord.sessionId
+      ) ?? null;
+    const analystDecision =
+      sessionDecisionOverrides[caseRecord.sessionId] ??
+      session?.analystDecision ??
+      "Pending";
+    const outcome: AnalystOutcome =
+      status === "Resolved"
+        ? analystDecision === "Safe"
+          ? "legit"
+          : analystDecision === "Escalated"
+            ? "fraud"
+            : "unresolved"
+        : "unresolved";
+
+    void persistFeedback({
+      sessionId: caseRecord.sessionId,
+      analystDecision,
+      outcome,
+      caseStatus: status
+    });
   };
 
   const getSession = (sessionId: string) =>

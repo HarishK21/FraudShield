@@ -1,65 +1,56 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/mongodb";
-import { scoreSession } from "@/lib/fraud/scoring";
-import type { CaseRecord, SessionSummaryInput } from "@/lib/fraud/types";
+import {
+  getCasePriority,
+  loadScoredFraudSessions,
+  shouldCreateCase
+} from "@/lib/fraud/session-pipeline";
+import type { CaseRecord } from "@/lib/fraud/types";
 
-const analystPool = ["J. Park", "M. Singh", "A. Novak", "R. Lopez", "K. Patel"];
+function getAnalystPool() {
+  const configured = (process.env.FRAUD_ANALYST_POOL ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  if (configured.length) {
+    return configured;
+  }
+
+  return ["Analyst-1", "Analyst-2", "Analyst-3"];
+}
 
 /**
  * GET /api/fraud/cases
  *
- * Derives investigation cases from high-risk telemetry sessions.
+ * Derives investigation cases from model-scored sessions.
  */
 export async function GET() {
   try {
-    const db = await getDb();
-    const rawSessions = await db
-      .collection("telemetry_sessions")
-      .find({})
-      .sort({ updatedAt: -1 })
-      .limit(50)
-      .toArray();
+    const { feedbackBySession, policy, sessions } = await loadScoredFraudSessions({
+      sessionLimit: 250,
+      eventLimit: 5000
+    });
+    const analystPool = getAnalystPool();
 
     const cases: CaseRecord[] = [];
 
-    for (const [index, doc] of rawSessions.entries()) {
-      const meta = (doc.metadata ?? {}) as Record<string, any>;
-
-      const summaryInput: SessionSummaryInput = {
-        totalSessionDuration: meta.totalSessionDuration ?? 0,
-        clickCount: meta.clickCount ?? 0,
-        avgTypingSpeed: meta.avgTypingSpeed ?? 0,
-        correctionCount: meta.correctionCount ?? 0,
-        hesitationCount: meta.hesitationCount ?? 0,
-        unusualAmountFlag: meta.unusualAmountFlag ?? false,
-        erraticMouseFlag: meta.erraticMouseFlag ?? false,
-        rapidNavFlag: meta.rapidNavFlag ?? false,
-        submitDelayMs: meta.submitDelayMs ?? 0,
-        transferAmount: meta.transferAmount ?? 0,
-        currentPage: doc.page ?? "Transfer",
-        lastEventTime: doc.updatedAt ?? new Date().toISOString(),
-        submitted: true,
-        timeBeforeFirstClick: 0,
-        avgDwellTime: 0,
-        focusChangeCount: meta.focusChanges ?? 0,
-        mouseTravelDistance: 0,
-        sharpDirectionChanges: 0,
-        rapidRepeatedClicks: 0,
-      };
-
-      const scored = scoreSession(summaryInput);
-
-      if (scored.currentRiskScore >= 45) {
-        const priority = scored.currentRiskScore >= 60 ? "Critical" : "High";
-
+    for (const [index, session] of sessions.entries()) {
+      const score = session.summary.currentRiskScore;
+      const feedback = feedbackBySession.get(session.sessionId);
+      if (shouldCreateCase(score, policy) || session.analystDecision === "Escalated") {
+        const reasonCodes = session.summary.reasonCodes.length
+          ? session.summary.reasonCodes.join(", ")
+          : "none";
         cases.push({
-          id: `case-${doc.sessionId}`,
-          sessionId: doc.sessionId,
-          priority,
+          id: `case-${session.sessionId}`,
+          sessionId: session.sessionId,
+          priority: getCasePriority(score, policy),
           assignedAnalyst: analystPool[index % analystPool.length],
-          createdTime: doc.updatedAt ?? new Date().toISOString(),
-          status: "Open",
-          summary: `Session flagged with risk score ${scored.currentRiskScore}. Top signals: ${scored.topFlags.join(", ")}.`,
+          createdTime: session.summary.lastEventTime,
+          status: feedback?.caseStatus ?? "Open",
+          summary: `Risk score ${score} (${Math.round(
+            session.summary.riskProbability * 100
+          )}% probability). Reason codes: ${reasonCodes}.`,
         });
       }
     }

@@ -29,7 +29,7 @@ import {
 const summaryIcons = [Activity, ShieldAlert, AlertTriangle, BarChart3] as const;
 
 export function OverviewPage() {
-  const { alerts, loadingState, sessions } = useFraudDashboard();
+  const { alerts, loadingState, monitoring, sessions } = useFraudDashboard();
 
   useDashboardPolling(true);
 
@@ -44,6 +44,15 @@ export function OverviewPage() {
 
   const metrics = getOverviewMetrics(sessions, alerts);
   const metricCards = getOverviewMetricCards(metrics);
+  const alertPrecision = monitoring
+    ? `${Math.round(monitoring.evaluation.alertTier.precision * 100)}%`
+    : "--";
+  const criticalRecall = monitoring
+    ? `${Math.round(monitoring.evaluation.criticalTier.recall * 100)}%`
+    : "--";
+  const driftFlags = monitoring
+    ? monitoring.drift.filter((metric) => metric.flagged).length
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -74,6 +83,30 @@ export function OverviewPage() {
         <RiskDistributionChart data={metrics.riskDistribution} />
         <AlertsOverTimeChart data={metrics.alertsOverTime} />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Model Monitoring</CardTitle>
+          <CardDescription>
+            Precision and recall are computed from labeled analyst outcomes. Drift
+            highlights sharp feature shifts between recent and baseline windows.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+            <p className="text-sm text-slate-400">Alert precision</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-50">{alertPrecision}</p>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+            <p className="text-sm text-slate-400">Critical recall</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-50">{criticalRecall}</p>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+            <p className="text-sm text-slate-400">Drift flags</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-50">{driftFlags}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_380px]">
         <Card>

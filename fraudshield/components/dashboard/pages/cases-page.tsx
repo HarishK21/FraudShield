@@ -55,7 +55,7 @@ export function CasesPage() {
           <CardHeader>
             <CardTitle>Case Queue</CardTitle>
             <CardDescription>
-              Cases are created from flagged sessions and stored in local demo state.
+              Cases are generated from policy thresholds and tracked with analyst updates.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-2 pt-0">
@@ -73,7 +73,7 @@ export function CasesPage() {
             <CardHeader>
               <CardTitle>Case Detail</CardTitle>
               <CardDescription>
-                Lightweight case context for demos and local workflow testing.
+                Session-linked case context for investigation and disposition.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -37,7 +37,7 @@ const CONSENT_KEY = "northmaple-consent";
 function generateSessionId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
-    : `demo-${Date.now()}`;
+    : `session-${Date.now()}`;
 }
 
 function mapPathToPage(pathname: string) {
@@ -49,6 +49,24 @@ function mapPathToPage(pathname: string) {
     .replace(/\//g, " ")
     .trim()
     .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function average(values: number[]) {
+  if (!values.length) {
+    return 0;
+  }
+
+  const total = values.reduce((sum, current) => sum + current, 0);
+  return Math.round(total / values.length);
+}
+
+function getMetadataString(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+  fallback: string
+) {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim() ? value : fallback;
 }
 
 export function TelemetryProvider({ children }: { children: React.ReactNode }) {
@@ -68,6 +86,9 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
   const correctionCountRef = useRef(0);
   const hesitationCountRef = useRef(0);
   const focusChangesRef = useRef(0);
+  const pageDwellSamplesRef = useRef<number[]>([]);
+  const firstClickSamplesRef = useRef<number[]>([]);
+  const rapidRepeatClickCountRef = useRef(0);
   const lastFocusedFieldRef = useRef<string | null>(null);
   const lastClickRef = useRef<{ elementId?: string; at: number } | null>(null);
   const rapidNavFlagRef = useRef(false);
@@ -104,7 +125,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          source: "northmaple-bank-demo",
+          source: process.env.NEXT_PUBLIC_TELEMETRY_SOURCE ?? "northmaple-bank",
           sentAt: new Date().toISOString(),
           events: batch
         }),
@@ -189,6 +210,12 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
 
       const now = Date.now();
       const submitDelayMs = reviewStartedAtRef.current ? now - reviewStartedAtRef.current : 0;
+      const fromAccountId = getMetadataString(metadata, "fromAccountId", "unknown-source");
+      const toAccountId = getMetadataString(
+        metadata,
+        "toAccountId",
+        "unknown-destination"
+      );
       const summary: SessionSummary = {
         sessionId,
         totalSessionDuration: now - sessionStartRef.current,
@@ -201,8 +228,15 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
           mouseRef.current.directionChanges >= 14 || mouseRef.current.distance >= 4200,
         rapidNavFlag: rapidNavFlagRef.current,
         submitDelayMs,
+        timeBeforeFirstClick: average(firstClickSamplesRef.current),
+        avgDwellTime: average(pageDwellSamplesRef.current),
         focusChanges: focusChangesRef.current,
+        mouseTravelDistance: Math.round(mouseRef.current.distance),
+        sharpDirectionChanges: mouseRef.current.directionChanges,
+        rapidRepeatedClicks: rapidRepeatClickCountRef.current,
         transferAmount,
+        fromAccountId,
+        toAccountId,
         majorClickSequence: clickSequenceRef.current.slice(-8),
         areaPath: areaPathRef.current.slice(-8)
       };
@@ -296,6 +330,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       const dwellMs = Date.now() - pageStartRef.current;
+      pageDwellSamplesRef.current.push(dwellMs);
       enqueue("page_dwell", {
         page: currentPageRef.current,
         metadata: {
@@ -359,6 +394,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
 
       if (!firstClickAtRef.current) {
         firstClickAtRef.current = now;
+        firstClickSamplesRef.current.push(now - pageStartRef.current);
         enqueue("first_click", {
           elementId,
           metadata: {
@@ -372,6 +408,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         lastClickRef.current.elementId === elementId &&
         now - lastClickRef.current.at <= 650
       ) {
+        rapidRepeatClickCountRef.current += 1;
         enqueue("rapid_repeat_click", {
           elementId,
           metadata: {

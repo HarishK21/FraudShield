@@ -81,8 +81,15 @@ export interface SessionSummary {
   erraticMouseFlag: boolean;
   rapidNavFlag: boolean;
   submitDelayMs: number;
+  timeBeforeFirstClick: number;
+  avgDwellTime: number;
   focusChanges: number;
+  mouseTravelDistance: number;
+  sharpDirectionChanges: number;
+  rapidRepeatedClicks: number;
   transferAmount: number;
+  fromAccountId: string;
+  toAccountId: string;
   majorClickSequence: string[];
   areaPath: string[];
 }

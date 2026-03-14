@@ -103,12 +103,12 @@ export function getOverviewMetrics(
   }).length;
 
   const flaggedSessions = sessions.filter(
-    (session) => session.summary.currentRiskScore >= 30
+    (session) => session.summary.status !== "Normal"
   ).length;
 
   const highRiskTransfers = sessions.filter(
     (session) =>
-      session.summary.currentRiskScore >= 60 || session.summary.transferAmount >= 8000
+      session.summary.status === "High Risk" || session.summary.transferAmount >= 8000
   ).length;
 
   const averageRiskScore = sessions.length
@@ -160,7 +160,7 @@ export function getOverviewMetrics(
   });
 
   const recentFlaggedSessions = sessions
-    .filter((session) => session.summary.currentRiskScore >= 30)
+    .filter((session) => session.summary.status !== "Normal")
     .sort((left, right) =>
       right.summary.lastEventTime.localeCompare(left.summary.lastEventTime)
     )

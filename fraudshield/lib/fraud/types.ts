@@ -1,12 +1,19 @@
 export type TelemetryEventType =
   | "page_view"
+  | "page_dwell"
   | "nav_click"
   | "account_card_click"
   | "transfer_field_focus"
   | "transfer_amount_change"
   | "hesitation_detected"
   | "review_transfer"
-  | "submit_transfer";
+  | "submit_transfer"
+  | "session_summary"
+  | "area_transition"
+  | "rapid_navigation"
+  | "rapid_repeat_click"
+  | "first_click"
+  | "ui_click";
 
 export type RiskStatus = "Normal" | "Watch" | "High Risk";
 
@@ -30,7 +37,11 @@ export type RiskFactorKey =
   | "long-review-submit-delay"
   | "sharp-direction-changes"
   | "rapid-repeated-clicks"
-  | "behavior-drift";
+  | "behavior-drift"
+  | "destination-novelty"
+  | "amount-deviation"
+  | "velocity-spike"
+  | "prior-fraud-rate";
 
 export interface TelemetryEvent {
   id: string;
@@ -75,6 +86,10 @@ export interface SessionSummaryInput {
   mouseTravelDistance: number;
   sharpDirectionChanges: number;
   rapidRepeatedClicks: number;
+  userId?: string;
+  sourceAccountId?: string;
+  destinationAccountId?: string;
+  sessionCreatedAt?: string;
 }
 
 export interface BehaviorBaseline {
@@ -97,12 +112,51 @@ export interface RiskFactor {
   description: string;
 }
 
+export interface HistoricalRiskFeatures {
+  userTransferCount24h: number;
+  accountTransferCount24h: number;
+  destinationTransferCount30d: number;
+  destinationNewForUser: boolean;
+  amountDeviationRatio30d: number;
+  amountZScore30d: number;
+  userTransferVelocity15m: number;
+  priorConfirmedFraudRate30d: number;
+}
+
+export interface RiskThresholdPolicy {
+  watch: number;
+  high: number;
+  alert: number;
+  criticalAlert: number;
+  caseOpen: number;
+  caseCritical: number;
+}
+
+export interface FraudModelParameters {
+  version: string;
+  intercept: number;
+  coefficients: Record<string, number>;
+  calibrationSlope: number;
+  calibrationIntercept: number;
+}
+
+export interface FraudRiskPolicy {
+  model: FraudModelParameters;
+  thresholds: RiskThresholdPolicy;
+  behaviorBaseline: BehaviorBaseline;
+  topFlagsCount: number;
+}
+
 export interface SessionSummary extends SessionSummaryInput {
   currentRiskScore: number;
+  riskProbability: number;
   status: RiskStatus;
   riskFactors: RiskFactor[];
   topFlags: string[];
+  reasonCodes: RiskFactorKey[];
+  modelVersion: string;
   behaviorDrift: BehaviorDriftResult;
+  historicalFeatures: HistoricalRiskFeatures;
 }
 
 export interface FraudSession {
@@ -133,6 +187,46 @@ export interface CaseRecord {
   createdTime: string;
   status: CaseStatus;
   summary: string;
+}
+
+export type AnalystOutcome = "fraud" | "legit" | "unresolved";
+
+export interface AnalystFeedbackRecord {
+  sessionId: string;
+  analystDecision: AnalystDecision;
+  outcome: AnalystOutcome;
+  caseStatus?: CaseStatus;
+  notes?: string;
+  updatedAt: string;
+}
+
+export interface TierEvaluationMetric {
+  threshold: number;
+  predictedPositive: number;
+  truePositive: number;
+  falsePositive: number;
+  falseNegative: number;
+  precision: number;
+  recall: number;
+}
+
+export interface FeatureDriftMetric {
+  feature: string;
+  baselineMean: number;
+  recentMean: number;
+  absoluteShift: number;
+  relativeShift: number;
+  flagged: boolean;
+}
+
+export interface FraudMonitoringSnapshot {
+  generatedAt: string;
+  labeledSessions: number;
+  evaluation: {
+    alertTier: TierEvaluationMetric;
+    criticalTier: TierEvaluationMetric;
+  };
+  drift: FeatureDriftMetric[];
 }
 
 export interface OverviewMetricCard {
@@ -172,6 +266,7 @@ export interface FraudDashboardSnapshot {
   sessions: FraudSession[];
   alerts: AlertRecord[];
   cases: CaseRecord[];
+  monitoring?: FraudMonitoringSnapshot | null;
   mode: DataSourceMode;
   updatedAt: string;
 }

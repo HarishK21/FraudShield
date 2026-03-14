@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const result = await saveTelemetryBatch(body);
 
     if (process.env.NODE_ENV !== "production") {
-      console.info("[northmaple-demo] telemetry batch received", JSON.stringify(body, null, 2));
+      console.info("[northmaple-bank] telemetry batch received", JSON.stringify(body, null, 2));
     }
 
     return NextResponse.json({

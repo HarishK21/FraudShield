@@ -2,6 +2,7 @@ import {
   type AlertRecord,
   type CaseRecord,
   type FraudDashboardSnapshot,
+  type FraudMonitoringSnapshot,
   type FraudSession
 } from "@/lib/fraud/types";
 import { buildMockFraudSnapshot } from "@/lib/fraud/mock-data";
@@ -9,10 +10,12 @@ import { buildMockFraudSnapshot } from "@/lib/fraud/mock-data";
 let mockCycle = 0;
 
 const fraudApiBaseUrl = process.env.NEXT_PUBLIC_FRAUD_API_BASE_URL;
-const enableLocalApi =
-  process.env.NEXT_PUBLIC_FRAUD_API_USE_LOCAL_ENDPOINTS === "true";
+const allowMockFallback =
+  process.env.NEXT_PUBLIC_FRAUD_API_ALLOW_MOCK === "true";
 
-function getCandidateUrls(resource: "sessions" | "alerts" | "cases") {
+function getCandidateUrls(
+  resource: "sessions" | "alerts" | "cases" | "metrics"
+) {
   if (fraudApiBaseUrl) {
     return [
       `${fraudApiBaseUrl.replace(/\/$/, "")}/${resource}`,
@@ -20,14 +23,12 @@ function getCandidateUrls(resource: "sessions" | "alerts" | "cases") {
     ];
   }
 
-  if (enableLocalApi) {
-    return [`/api/fraud/${resource}`];
-  }
-
-  return [];
+  return [`/api/fraud/${resource}`];
 }
 
-async function fetchFromCandidates<T>(resource: "sessions" | "alerts" | "cases") {
+async function fetchFromCandidates<T>(
+  resource: "sessions" | "alerts" | "cases" | "metrics"
+) {
   for (const url of getCandidateUrls(resource)) {
     try {
       const response = await fetch(url, {
@@ -60,7 +61,11 @@ export async function getSessions(): Promise<{
     return { data: liveData, mode: "live" };
   }
 
-  return { data: getMockSnapshot().sessions, mode: "mock" };
+  if (allowMockFallback) {
+    return { data: getMockSnapshot().sessions, mode: "mock" };
+  }
+
+  return { data: [], mode: "live" };
 }
 
 export async function getAlerts(): Promise<{
@@ -73,7 +78,11 @@ export async function getAlerts(): Promise<{
     return { data: liveData, mode: "live" };
   }
 
-  return { data: getMockSnapshot().alerts, mode: "mock" };
+  if (allowMockFallback) {
+    return { data: getMockSnapshot().alerts, mode: "mock" };
+  }
+
+  return { data: [], mode: "live" };
 }
 
 export async function getCases(): Promise<{
@@ -86,7 +95,11 @@ export async function getCases(): Promise<{
     return { data: liveData, mode: "live" };
   }
 
-  return { data: getMockSnapshot().cases, mode: "mock" };
+  if (allowMockFallback) {
+    return { data: getMockSnapshot().cases, mode: "mock" };
+  }
+
+  return { data: [], mode: "live" };
 }
 
 export async function getSessionById(sessionId: string): Promise<{
@@ -102,16 +115,12 @@ export async function getSessionById(sessionId: string): Promise<{
 }
 
 export async function getDashboardSnapshot(): Promise<FraudDashboardSnapshot> {
-  // This adapter is where the banking site's telemetry API can replace mock mode.
-  // If the remote endpoint is unavailable, the dashboard keeps working with demo data.
-  if (getCandidateUrls("sessions").length === 0) {
-    return getMockSnapshot();
-  }
-
-  const [sessionsResult, alertsResult, casesResult] = await Promise.all([
+  const [sessionsResult, alertsResult, casesResult, monitoringResult] =
+    await Promise.all([
     fetchFromCandidates<FraudSession[]>("sessions"),
     fetchFromCandidates<AlertRecord[]>("alerts"),
-    fetchFromCandidates<CaseRecord[]>("cases")
+    fetchFromCandidates<CaseRecord[]>("cases"),
+    fetchFromCandidates<FraudMonitoringSnapshot>("metrics")
   ]);
 
   if (sessionsResult && alertsResult && casesResult) {
@@ -119,10 +128,22 @@ export async function getDashboardSnapshot(): Promise<FraudDashboardSnapshot> {
       sessions: sessionsResult,
       alerts: alertsResult,
       cases: casesResult,
+      monitoring: monitoringResult ?? null,
       mode: "live",
       updatedAt: new Date().toISOString()
     };
   }
 
-  return getMockSnapshot();
+  if (allowMockFallback) {
+    return getMockSnapshot();
+  }
+
+  return {
+    sessions: sessionsResult ?? [],
+    alerts: alertsResult ?? [],
+    cases: casesResult ?? [],
+    monitoring: monitoringResult ?? null,
+    mode: "live",
+    updatedAt: new Date().toISOString()
+  };
 }

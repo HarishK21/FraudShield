@@ -221,7 +221,7 @@ export async function saveTelemetryBatch(payload: TelemetryBatchInput) {
       payload.events.map((event) => ({
         ...event,
         userId: DEMO_USER_ID,
-        source: payload.source ?? "northmaple-bank-demo",
+        source: payload.source ?? "northmaple-bank",
         sentAt: payload.sentAt,
         receivedAt
       }))

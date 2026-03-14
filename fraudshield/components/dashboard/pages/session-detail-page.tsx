@@ -173,7 +173,7 @@ export function SessionDetailPage({ sessionId }: { sessionId: string }) {
           <CardHeader>
             <CardTitle>Analyst Decision Area</CardTitle>
             <CardDescription>
-              Local state only for the demo. Replace with a workflow API when ready.
+              Persisted analyst workflow state used for case triage and model feedback.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -213,9 +213,9 @@ export function SessionDetailPage({ sessionId }: { sessionId: string }) {
               <p className="text-sm text-slate-400">Review note</p>
               <p className="mt-2 text-sm leading-6 text-slate-300">
                 High-level telemetry suggests{" "}
-                {session.summary.currentRiskScore >= 60
+                {session.summary.status === "High Risk"
                   ? "a strong need for manual follow-up."
-                  : session.summary.currentRiskScore >= 30
+                  : session.summary.status === "Watch"
                     ? "a watch-state session that may need secondary review."
                     : "a relatively low-risk interaction pattern."}
               </p>
