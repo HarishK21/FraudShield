@@ -12,7 +12,7 @@ declare global {
 }
 
 const client = new MongoClient(uri, {
-  appName: "NorthMapleBankDemo"
+  appName: "NorthMapleBankDemo",
 });
 
 const clientPromise =
