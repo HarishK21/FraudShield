@@ -1,5 +1,4 @@
 # NorthMaple Bank & FraudShield (GenAIGenesis 2026)
-
 Welcome to the **NorthMaple Bank & FraudShield** monorepo—a comprehensive, two-site behavioral fraud detection demonstration.
 
 ---
