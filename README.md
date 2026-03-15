@@ -1,4 +1,4 @@
-# GenAIGenesis2026
+# FraudShield
 
 Fraud-detection hackathon project with:
 - `banker` (synthetic banking UI + telemetry source)
