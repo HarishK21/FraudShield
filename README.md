@@ -6,7 +6,7 @@ FraudShield combines classic transaction checks with session-level behavior sign
 
 Built with `railtracks`.
 
-## 💡 Project Inspiration
+## Project Inspiration:
 
 Traditional fraud checks are often transaction-only (amount limits, destination checks, velocity). That leaves a gap: account takeover and automated abuse can look "normal" transaction-wise but still behave abnormally at the session level.
 
@@ -45,13 +45,18 @@ Why it matters in generative AI:
 - Python / pip
 - Git / GitHub
 
-## 🚀 Product Summary
+## Product Summary:
 
 FraudShield simulates a full fraud detection loop:
 1. A user performs banking actions in the `banker` app.
 2. Behavioral telemetry is captured and persisted.
 3. `fraudshield` scores sessions using rules and optional AI co-assessment.
 4. Analysts review live sessions, alerts, and cases.
+
+User experience:
+- Customers interact with a realistic, synthetic banking flow in `banker` (accounts, transfer, activity).
+- Analysts use `fraudshield` to monitor sessions, inspect reason codes, triage alerts, and escalate cases quickly.
+- The dashboard emphasizes explainability so decisions are not based on opaque scores alone.
 
 Core features:
 - Real-time risk scoring by session
