@@ -4,6 +4,7 @@ import {
   loadScoredFraudSessions,
   shouldCreateAlert
 } from "@/lib/fraud/session-pipeline";
+import { parseSessionFilterCriteria } from "@/lib/fraud/filter-query";
 import type { AlertRecord } from "@/lib/fraud/types";
 
 /**
@@ -11,11 +12,13 @@ import type { AlertRecord } from "@/lib/fraud/types";
  *
  * Derives alerts from model-scored sessions with shared policy thresholds.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const filters = parseSessionFilterCriteria(request);
     const { policy, sessions } = await loadScoredFraudSessions({
       sessionLimit: 250,
-      eventLimit: 5000
+      eventLimit: 5000,
+      filters
     });
 
     const alerts: AlertRecord[] = [];

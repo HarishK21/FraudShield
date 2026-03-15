@@ -1,12 +1,20 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { ProfileForm } from "@/components/dashboard/profile-form";
+import { getUserFromServerCookie } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Profile & Settings | NorthMaple Bank",
   description: "Manage your personal profile and account settings."
 };
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const user = await getUserFromServerCookie();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   return (
     <DashboardShell>
       <div className="flex w-full max-w-4xl flex-col gap-6 animate-fade-in-up">

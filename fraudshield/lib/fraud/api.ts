@@ -3,9 +3,11 @@ import {
   type CaseRecord,
   type FraudDashboardSnapshot,
   type FraudMonitoringSnapshot,
-  type FraudSession
+  type FraudSession,
+  type SessionFilterCriteria
 } from "@/lib/fraud/types";
 import { buildMockFraudSnapshot } from "@/lib/fraud/mock-data";
+import { toFilterSearchParams } from "@/lib/fraud/filter-query";
 
 let mockCycle = 0;
 
@@ -14,22 +16,28 @@ const allowMockFallback =
   process.env.NEXT_PUBLIC_FRAUD_API_ALLOW_MOCK === "true";
 
 function getCandidateUrls(
-  resource: "sessions" | "alerts" | "cases" | "metrics"
+  resource: "sessions" | "alerts" | "cases" | "metrics",
+  filters?: SessionFilterCriteria
 ) {
+  const query = toFilterSearchParams(filters).toString();
+  const withQuery = (baseUrl: string) =>
+    query ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${query}` : baseUrl;
+
   if (fraudApiBaseUrl) {
     return [
-      `${fraudApiBaseUrl.replace(/\/$/, "")}/${resource}`,
-      `${fraudApiBaseUrl.replace(/\/$/, "")}/api/fraud/${resource}`
+      withQuery(`${fraudApiBaseUrl.replace(/\/$/, "")}/${resource}`),
+      withQuery(`${fraudApiBaseUrl.replace(/\/$/, "")}/api/fraud/${resource}`)
     ];
   }
 
-  return [`/api/fraud/${resource}`];
+  return [withQuery(`/api/fraud/${resource}`)];
 }
 
 async function fetchFromCandidates<T>(
-  resource: "sessions" | "alerts" | "cases" | "metrics"
+  resource: "sessions" | "alerts" | "cases" | "metrics",
+  filters?: SessionFilterCriteria
 ) {
-  for (const url of getCandidateUrls(resource)) {
+  for (const url of getCandidateUrls(resource, filters)) {
     try {
       const response = await fetch(url, {
         cache: "no-store"
@@ -51,62 +59,121 @@ function getMockSnapshot() {
   return buildMockFraudSnapshot(mockCycle);
 }
 
-export async function getSessions(): Promise<{
+function sessionMatchesFilters(session: FraudSession, filters?: SessionFilterCriteria) {
+  if (!filters) {
+    return true;
+  }
+
+  if (filters.userId && session.userId !== filters.userId) {
+    return false;
+  }
+
+  if (filters.testRunId && session.testRunId !== filters.testRunId) {
+    return false;
+  }
+
+  if (filters.agentId && session.agentId !== filters.agentId) {
+    return false;
+  }
+
+  if (filters.scenarioId && session.scenarioId !== filters.scenarioId) {
+    return false;
+  }
+
+  return true;
+}
+
+function applyFiltersToSnapshot(
+  snapshot: FraudDashboardSnapshot,
+  filters?: SessionFilterCriteria
+) {
+  if (!filters) {
+    return snapshot;
+  }
+
+  const sessions = snapshot.sessions.filter((session) =>
+    sessionMatchesFilters(session, filters)
+  );
+  const allowedSessionIds = new Set(sessions.map((session) => session.sessionId));
+
+  return {
+    ...snapshot,
+    sessions,
+    alerts: snapshot.alerts.filter((alert) => allowedSessionIds.has(alert.sessionId)),
+    cases: snapshot.cases.filter((caseRecord) =>
+      allowedSessionIds.has(caseRecord.sessionId)
+    )
+  };
+}
+
+export async function getSessions(
+  filters?: SessionFilterCriteria
+): Promise<{
   data: FraudSession[];
   mode: FraudDashboardSnapshot["mode"];
 }> {
-  const liveData = await fetchFromCandidates<FraudSession[]>("sessions");
+  const liveData = await fetchFromCandidates<FraudSession[]>("sessions", filters);
 
   if (liveData) {
     return { data: liveData, mode: "live" };
   }
 
   if (allowMockFallback) {
-    return { data: getMockSnapshot().sessions, mode: "mock" };
+    const snapshot = applyFiltersToSnapshot(getMockSnapshot(), filters);
+    return { data: snapshot.sessions, mode: "mock" };
   }
 
   return { data: [], mode: "live" };
 }
 
-export async function getAlerts(): Promise<{
+export async function getAlerts(
+  filters?: SessionFilterCriteria
+): Promise<{
   data: AlertRecord[];
   mode: FraudDashboardSnapshot["mode"];
 }> {
-  const liveData = await fetchFromCandidates<AlertRecord[]>("alerts");
+  const liveData = await fetchFromCandidates<AlertRecord[]>("alerts", filters);
 
   if (liveData) {
     return { data: liveData, mode: "live" };
   }
 
   if (allowMockFallback) {
-    return { data: getMockSnapshot().alerts, mode: "mock" };
+    const snapshot = applyFiltersToSnapshot(getMockSnapshot(), filters);
+    return { data: snapshot.alerts, mode: "mock" };
   }
 
   return { data: [], mode: "live" };
 }
 
-export async function getCases(): Promise<{
+export async function getCases(
+  filters?: SessionFilterCriteria
+): Promise<{
   data: CaseRecord[];
   mode: FraudDashboardSnapshot["mode"];
 }> {
-  const liveData = await fetchFromCandidates<CaseRecord[]>("cases");
+  const liveData = await fetchFromCandidates<CaseRecord[]>("cases", filters);
 
   if (liveData) {
     return { data: liveData, mode: "live" };
   }
 
   if (allowMockFallback) {
-    return { data: getMockSnapshot().cases, mode: "mock" };
+    const snapshot = applyFiltersToSnapshot(getMockSnapshot(), filters);
+    return { data: snapshot.cases, mode: "mock" };
   }
 
   return { data: [], mode: "live" };
 }
 
-export async function getSessionById(sessionId: string): Promise<{
+export async function getSessionById(
+  sessionId: string,
+  filters?: SessionFilterCriteria
+): Promise<{
   data: FraudSession | null;
   mode: FraudDashboardSnapshot["mode"];
 }> {
-  const { data, mode } = await getSessions();
+  const { data, mode } = await getSessions(filters);
 
   return {
     data: data.find((session) => session.sessionId === sessionId) ?? null,
@@ -114,13 +181,15 @@ export async function getSessionById(sessionId: string): Promise<{
   };
 }
 
-export async function getDashboardSnapshot(): Promise<FraudDashboardSnapshot> {
+export async function getDashboardSnapshot(
+  filters?: SessionFilterCriteria
+): Promise<FraudDashboardSnapshot> {
   const [sessionsResult, alertsResult, casesResult, monitoringResult] =
     await Promise.all([
-    fetchFromCandidates<FraudSession[]>("sessions"),
-    fetchFromCandidates<AlertRecord[]>("alerts"),
-    fetchFromCandidates<CaseRecord[]>("cases"),
-    fetchFromCandidates<FraudMonitoringSnapshot>("metrics")
+    fetchFromCandidates<FraudSession[]>("sessions", filters),
+    fetchFromCandidates<AlertRecord[]>("alerts", filters),
+    fetchFromCandidates<CaseRecord[]>("cases", filters),
+    fetchFromCandidates<FraudMonitoringSnapshot>("metrics", filters)
   ]);
 
   if (sessionsResult && alertsResult && casesResult) {
@@ -135,7 +204,7 @@ export async function getDashboardSnapshot(): Promise<FraudDashboardSnapshot> {
   }
 
   if (allowMockFallback) {
-    return getMockSnapshot();
+    return applyFiltersToSnapshot(getMockSnapshot(), filters);
   }
 
   return {

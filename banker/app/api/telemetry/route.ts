@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 
 import { saveTelemetryBatch } from "@/lib/bank-repository";
+import { getUserFromRequest } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  const user = getUserFromRequest(request);
+
+  if (!user) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Authentication required."
+      },
+      { status: 401 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   if (!body || !Array.isArray(body.events)) {
@@ -16,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await saveTelemetryBatch(body);
+    const result = await saveTelemetryBatch(user.id, body);
 
     if (process.env.NODE_ENV !== "production") {
       console.info("[northmaple-bank] telemetry batch received", JSON.stringify(body, null, 2));

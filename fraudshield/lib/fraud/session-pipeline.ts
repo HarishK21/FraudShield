@@ -15,6 +15,7 @@ import {
   type FraudRiskPolicy,
   type FraudSession,
   type HistoricalRiskFeatures,
+  type SessionFilterCriteria,
   type SessionSummaryInput,
   type TelemetryEventType
 } from "@/lib/fraud/types";
@@ -27,6 +28,9 @@ type RawSessionDoc = {
   _id?: unknown;
   sessionId?: unknown;
   userId?: unknown;
+  testRunId?: unknown;
+  agentId?: unknown;
+  scenarioId?: unknown;
   page?: unknown;
   metadata?: unknown;
   updatedAt?: unknown;
@@ -35,12 +39,22 @@ type RawSessionDoc = {
 type RawEventDoc = {
   _id?: unknown;
   sessionId?: unknown;
+  userId?: unknown;
+  testRunId?: unknown;
+  agentId?: unknown;
+  scenarioId?: unknown;
   timestamp?: unknown;
   page?: unknown;
   eventType?: unknown;
   elementId?: unknown;
   metadata?: unknown;
 };
+
+interface LoadScoredFraudSessionsOptions {
+  sessionLimit?: number;
+  eventLimit?: number;
+  filters?: SessionFilterCriteria;
+}
 
 type HistoryPoint = {
   timestamp: number;
@@ -256,6 +270,15 @@ function mapTelemetrySummary(
       derivedMetrics.rapidRepeatedClicks
     ),
     userId: asString(doc.userId, "unknown-user"),
+    testRunId: asOptionalString(
+      doc.testRunId ?? metadata.testRunId ?? metadata.test_run_id
+    ),
+    agentId: asOptionalString(
+      doc.agentId ?? metadata.agentId ?? metadata.agent_id
+    ),
+    scenarioId: asOptionalString(
+      doc.scenarioId ?? metadata.scenarioId ?? metadata.scenario_id
+    ),
     sourceAccountId,
     destinationAccountId: asString(
       metadata.destinationAccountId ?? metadata.toAccountId,
@@ -467,24 +490,41 @@ function getDerivedMetricsForSession(rawEvents: RawEventDoc[]) {
   };
 }
 
-export async function loadScoredFraudSessions(options?: {
-  sessionLimit?: number;
-  eventLimit?: number;
-}) {
+export async function loadScoredFraudSessions(
+  options?: LoadScoredFraudSessionsOptions
+) {
   const sessionLimit = options?.sessionLimit ?? 250;
   const eventLimit = options?.eventLimit ?? 5000;
+  const filters = options?.filters;
   const db = await getDb();
+  const sessionQuery: Record<string, unknown> = {};
+
+  if (filters?.userId) {
+    sessionQuery.userId = filters.userId;
+  }
+
+  if (filters?.testRunId) {
+    sessionQuery.testRunId = filters.testRunId;
+  }
+
+  if (filters?.agentId) {
+    sessionQuery.agentId = filters.agentId;
+  }
+
+  if (filters?.scenarioId) {
+    sessionQuery.scenarioId = filters.scenarioId;
+  }
 
   const [rawSessions, rawEvents, feedbackBySession, policy] = await Promise.all([
     db
       .collection<RawSessionDoc>("telemetry_sessions")
-      .find({})
+      .find(sessionQuery)
       .sort({ updatedAt: -1 })
       .limit(sessionLimit)
       .toArray(),
     db
       .collection<RawEventDoc>("telemetry_events")
-      .find({})
+      .find(sessionQuery)
       .sort({ timestamp: -1 })
       .limit(eventLimit)
       .toArray(),
@@ -536,6 +576,25 @@ export async function loadScoredFraudSessions(options?: {
           page: asString(eventDoc.page, "Transfer"),
           eventType: normalizeTelemetryEventType(eventDoc.eventType),
           elementId: asOptionalString(eventDoc.elementId),
+          userId: asOptionalString(eventDoc.userId ?? userId),
+          testRunId: asOptionalString(
+            eventDoc.testRunId ??
+              eventMetadata.testRunId ??
+              eventMetadata.test_run_id ??
+              summaryInput.testRunId
+          ),
+          agentId: asOptionalString(
+            eventDoc.agentId ??
+              eventMetadata.agentId ??
+              eventMetadata.agent_id ??
+              summaryInput.agentId
+          ),
+          scenarioId: asOptionalString(
+            eventDoc.scenarioId ??
+              eventMetadata.scenarioId ??
+              eventMetadata.scenario_id ??
+              summaryInput.scenarioId
+          ),
           dwellTime: asOptionalNumber(eventMetadata.dwellMs),
           timeBeforeFirstClick: asOptionalNumber(eventMetadata.timeBeforeFirstClickMs),
           mouseTravelDistance: asOptionalNumber(eventMetadata.totalDistance),
@@ -552,6 +611,10 @@ export async function loadScoredFraudSessions(options?: {
 
     return {
       sessionId,
+      userId,
+      testRunId: summaryInput.testRunId,
+      agentId: summaryInput.agentId,
+      scenarioId: summaryInput.scenarioId,
       accountId: sourceAccountId,
       accountHolder: userDisplayNameById.get(userId) ?? userId,
       deviceLabel: asString(metadata.deviceLabel, "Unknown device"),

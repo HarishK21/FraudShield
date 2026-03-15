@@ -21,6 +21,12 @@ interface TypingStats {
   lastKeyAt?: number;
 }
 
+interface SessionTagState {
+  testRunId?: string;
+  agentId?: string;
+  scenarioId?: string;
+}
+
 interface TelemetryContextValue {
   consentStatus: ConsentStatus;
   sessionId: string;
@@ -33,6 +39,9 @@ interface TelemetryContextValue {
 
 const TelemetryContext = createContext<TelemetryContextValue | null>(null);
 const CONSENT_KEY = "northmaple-consent";
+const RUN_ID_STORAGE_KEY = "northmaple-test-run-id";
+const AGENT_ID_STORAGE_KEY = "northmaple-agent-id";
+const SCENARIO_ID_STORAGE_KEY = "northmaple-scenario-id";
 
 function generateSessionId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -67,6 +76,26 @@ function getMetadataString(
 ) {
   const value = metadata?.[key];
   return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function normalizeTag(value: string | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
+function readTagFromSearch(searchParams: URLSearchParams, ...keys: string[]) {
+  for (const key of keys) {
+    const value = normalizeTag(searchParams.get(key));
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 export function TelemetryProvider({ children }: { children: React.ReactNode }) {
@@ -106,8 +135,61 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
   const currentAreaRef = useRef<string | null>(null);
   const reviewStartedAtRef = useRef<number | null>(null);
   const submittedAmountsRef = useRef<number[]>([]);
+  const sessionTagsRef = useRef<SessionTagState>({});
 
   const isTelemetryEnabled = consentStatus === "accepted";
+
+  const readSessionTags = useCallback((): SessionTagState => {
+    if (typeof window === "undefined") {
+      return {};
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const testRunId =
+      readTagFromSearch(searchParams, "test_run_id", "testRunId") ??
+      normalizeTag(window.sessionStorage.getItem(RUN_ID_STORAGE_KEY));
+    const agentId =
+      readTagFromSearch(searchParams, "agent_id", "agentId") ??
+      normalizeTag(window.sessionStorage.getItem(AGENT_ID_STORAGE_KEY));
+    const scenarioId =
+      readTagFromSearch(searchParams, "scenario_id", "scenarioId") ??
+      normalizeTag(window.sessionStorage.getItem(SCENARIO_ID_STORAGE_KEY));
+
+    if (testRunId) {
+      window.sessionStorage.setItem(RUN_ID_STORAGE_KEY, testRunId);
+    }
+
+    if (agentId) {
+      window.sessionStorage.setItem(AGENT_ID_STORAGE_KEY, agentId);
+    }
+
+    if (scenarioId) {
+      window.sessionStorage.setItem(SCENARIO_ID_STORAGE_KEY, scenarioId);
+    }
+
+    return {
+      testRunId,
+      agentId,
+      scenarioId
+    };
+  }, []);
+
+  const withSessionTags = useCallback(
+    (metadata?: Record<string, unknown>) => {
+      const tags = sessionTagsRef.current;
+      if (!tags.testRunId && !tags.agentId && !tags.scenarioId) {
+        return metadata;
+      }
+
+      return {
+        ...(metadata ?? {}),
+        ...(tags.testRunId ? { testRunId: tags.testRunId } : {}),
+        ...(tags.agentId ? { agentId: tags.agentId } : {}),
+        ...(tags.scenarioId ? { scenarioId: tags.scenarioId } : {})
+      };
+    },
+    []
+  );
 
   const flush = useCallback(async () => {
     if (!queueRef.current.length) {
@@ -151,16 +233,21 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const tags = sessionTagsRef.current;
+
       queueRef.current.push({
         sessionId,
         eventType,
         page: options.page ?? currentPageRef.current,
         elementId: options.elementId,
         timestamp: new Date().toISOString(),
-        metadata: options.metadata
+        metadata: withSessionTags(options.metadata),
+        testRunId: tags.testRunId,
+        agentId: tags.agentId,
+        scenarioId: tags.scenarioId
       });
     },
-    [isTelemetryEnabled, sessionId]
+    [isTelemetryEnabled, sessionId, withSessionTags]
   );
 
   const calculateAverageTypingSpeed = useCallback(() => {
@@ -216,6 +303,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         "toAccountId",
         "unknown-destination"
       );
+      const tags = sessionTagsRef.current;
       const summary: SessionSummary = {
         sessionId,
         totalSessionDuration: now - sessionStartRef.current,
@@ -238,7 +326,11 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         fromAccountId,
         toAccountId,
         majorClickSequence: clickSequenceRef.current.slice(-8),
-        areaPath: areaPathRef.current.slice(-8)
+        areaPath: areaPathRef.current.slice(-8),
+        testRunId: tags.testRunId,
+        agentId: tags.agentId,
+        scenarioId: tags.scenarioId,
+        sessionCreatedAt: new Date(sessionStartRef.current).toISOString()
       };
 
       enqueue("submit_transfer", {
@@ -279,6 +371,10 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
     },
     [enqueue, isTelemetryEnabled]
   );
+
+  useEffect(() => {
+    sessionTagsRef.current = readSessionTags();
+  }, [pathname, readSessionTags]);
 
   useEffect(() => {
     const savedConsent = window.localStorage.getItem(CONSENT_KEY) as ConsentStatus | null;

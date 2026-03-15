@@ -6,6 +6,7 @@ import {
   startTransition,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode
@@ -21,7 +22,8 @@ import {
   type CaseRecord,
   type CaseStatus,
   type FraudDashboardSnapshot,
-  type FraudSession
+  type FraudSession,
+  type SessionFilterCriteria
 } from "@/lib/fraud/types";
 
 type LoadingState = "loading" | "ready" | "error";
@@ -30,6 +32,15 @@ type DashboardContextValue = FraudDashboardSnapshot & {
   error: string | null;
   isRefreshing: boolean;
   loadingState: LoadingState;
+  filters: SessionFilterCriteria;
+  filterOptions: {
+    userIds: string[];
+    testRunIds: string[];
+    agentIds: string[];
+    scenarioIds: string[];
+  };
+  setFilters: (next: Partial<SessionFilterCriteria>) => void;
+  clearFilters: () => void;
   refresh: () => Promise<void>;
   markSessionSafe: (sessionId: string) => void;
   flagSessionForReview: (sessionId: string) => void;
@@ -50,6 +61,21 @@ const emptySnapshot: FraudDashboardSnapshot = {
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 const defaultAnalyst =
   (process.env.NEXT_PUBLIC_DEFAULT_ANALYST ?? "").trim() || "Unassigned";
+
+function normalizeFilterValue(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length ? normalized : undefined;
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return [...new Set(values.filter(Boolean) as string[])].sort((left, right) =>
+    left.localeCompare(right)
+  );
+}
 
 function getCasePriority(score: number): CasePriority {
   if (score >= 75) {
@@ -85,11 +111,14 @@ function applyLocalState(
     ...caseRecord,
     status: caseStatusOverrides[caseRecord.id] ?? caseRecord.status
   }));
+  const sessionIds = new Set(sessions.map((session) => session.sessionId));
 
-  const mergedLocalCases = localCases.map((caseRecord) => ({
-    ...caseRecord,
-    status: caseStatusOverrides[caseRecord.id] ?? caseRecord.status
-  }));
+  const mergedLocalCases = localCases
+    .filter((caseRecord) => sessionIds.has(caseRecord.sessionId))
+    .map((caseRecord) => ({
+      ...caseRecord,
+      status: caseStatusOverrides[caseRecord.id] ?? caseRecord.status
+    }));
 
   const cases = [...remoteCases, ...mergedLocalCases].sort((left, right) =>
     right.createdTime.localeCompare(left.createdTime)
@@ -108,6 +137,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [loadingState, setLoadingState] = useState<LoadingState>("loading");
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [filters, setFiltersState] = useState<SessionFilterCriteria>({});
   const [sessionDecisionOverrides, setSessionDecisionOverrides] = useState<
     Record<string, AnalystDecision>
   >({});
@@ -119,6 +149,12 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   >({});
   const [localCases, setLocalCases] = useState<CaseRecord[]>([]);
   const refreshInFlightRef = useRef(false);
+  const pendingRefreshRef = useRef(false);
+  const filtersRef = useRef<SessionFilterCriteria>(filters);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
   const dashboardData = applyLocalState(
     snapshot,
@@ -126,6 +162,19 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     alertStatusOverrides,
     caseStatusOverrides,
     localCases
+  );
+  const filterOptions = useMemo(
+    () => ({
+      userIds: uniqueSorted(snapshot.sessions.map((session) => session.userId)),
+      testRunIds: uniqueSorted(
+        snapshot.sessions.map((session) => session.testRunId)
+      ),
+      agentIds: uniqueSorted(snapshot.sessions.map((session) => session.agentId)),
+      scenarioIds: uniqueSorted(
+        snapshot.sessions.map((session) => session.scenarioId)
+      )
+    }),
+    [snapshot.sessions]
   );
 
   const persistFeedback = useCallback(
@@ -153,8 +202,9 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (refreshInFlightRef.current) {
+      pendingRefreshRef.current = true;
       return;
     }
 
@@ -162,7 +212,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     setIsRefreshing(true);
 
     try {
-      const nextSnapshot = await getDashboardSnapshot();
+      const nextSnapshot = await getDashboardSnapshot(filtersRef.current);
 
       startTransition(() => {
         setSnapshot(nextSnapshot);
@@ -175,11 +225,49 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     } finally {
       refreshInFlightRef.current = false;
       setIsRefreshing(false);
+      if (pendingRefreshRef.current) {
+        pendingRefreshRef.current = false;
+        void refresh();
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     void refresh();
+  }, [filters, refresh]);
+
+  const setFilters = useCallback((next: Partial<SessionFilterCriteria>) => {
+    setFiltersState((current) => {
+      const hasUserId = Object.prototype.hasOwnProperty.call(next, "userId");
+      const hasRunId = Object.prototype.hasOwnProperty.call(next, "testRunId");
+      const hasAgentId = Object.prototype.hasOwnProperty.call(next, "agentId");
+      const hasScenarioId = Object.prototype.hasOwnProperty.call(next, "scenarioId");
+      const candidate: SessionFilterCriteria = {
+        userId: hasUserId ? normalizeFilterValue(next.userId) : current.userId,
+        testRunId: hasRunId
+          ? normalizeFilterValue(next.testRunId)
+          : current.testRunId,
+        agentId: hasAgentId ? normalizeFilterValue(next.agentId) : current.agentId,
+        scenarioId: hasScenarioId
+          ? normalizeFilterValue(next.scenarioId)
+          : current.scenarioId
+      };
+
+      if (
+        candidate.userId === current.userId &&
+        candidate.testRunId === current.testRunId &&
+        candidate.agentId === current.agentId &&
+        candidate.scenarioId === current.scenarioId
+      ) {
+        return current;
+      }
+
+      return candidate;
+    });
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFiltersState({});
   }, []);
 
   const markSessionSafe = (sessionId: string) => {
@@ -348,6 +436,10 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         error,
         isRefreshing,
         loadingState,
+        filters,
+        filterOptions,
+        setFilters,
+        clearFilters,
         refresh,
         markSessionSafe,
         flagSessionForReview,

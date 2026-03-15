@@ -16,14 +16,14 @@ export const demoAccounts: Account[] = [
   {
     id: "chequing",
     name: "Everyday Chequing",
-    maskedNumber: "•••• 1842",
+    maskedNumber: "**** 1842",
     balance: 6845.21,
     lastUpdated: "2026-03-14T13:05:00.000Z"
   },
   {
     id: "savings",
     name: "Maple Savings",
-    maskedNumber: "•••• 9471",
+    maskedNumber: "**** 9471",
     balance: 21340.88,
     lastUpdated: "2026-03-14T12:48:00.000Z"
   }

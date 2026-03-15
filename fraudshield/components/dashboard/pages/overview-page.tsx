@@ -11,6 +11,7 @@ import {
 import { PageHeader } from "@/components/dashboard/page-header";
 import { RecentAlertsList } from "@/components/dashboard/recent-alerts-list";
 import { RiskDistributionChart } from "@/components/dashboard/risk-distribution-chart";
+import { SessionFilters } from "@/components/dashboard/session-filters";
 import { SessionTable } from "@/components/dashboard/session-table";
 import { SummaryCard } from "@/components/dashboard/summary-card";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +60,12 @@ export function OverviewPage() {
       <PageHeader
         title="Fraud Analyst Dashboard"
         description="Monitor incoming behavioral telemetry from the banking site, spot risky transfer sessions, and move cleanly from alert triage into case escalation."
-        actions={<Badge variant="info">Auto-refresh every 5 seconds</Badge>}
+        actions={
+          <>
+            <Badge variant="info">Auto-refresh every 5 seconds</Badge>
+            <SessionFilters />
+          </>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

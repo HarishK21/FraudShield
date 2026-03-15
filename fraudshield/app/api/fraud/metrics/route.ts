@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadScoredFraudSessions } from "@/lib/fraud/session-pipeline";
+import { parseSessionFilterCriteria } from "@/lib/fraud/filter-query";
 import {
   type FeatureDriftMetric,
   type FraudMonitoringSnapshot,
@@ -98,11 +99,13 @@ function projectFeatures(summary: {
   ];
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const filters = parseSessionFilterCriteria(request);
     const { feedbackBySession, policy, sessions } = await loadScoredFraudSessions({
       sessionLimit: 1000,
-      eventLimit: 10000
+      eventLimit: 10000,
+      filters
     });
 
     const labeled: LabeledSession[] = sessions
@@ -208,4 +211,3 @@ export async function GET() {
     );
   }
 }
-

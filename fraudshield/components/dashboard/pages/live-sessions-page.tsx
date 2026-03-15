@@ -14,6 +14,7 @@ import {
   useFraudDashboard
 } from "@/components/dashboard/dashboard-data-provider";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { SessionFilters } from "@/components/dashboard/session-filters";
 import { SessionTable } from "@/components/dashboard/session-table";
 
 export function LiveSessionsPage() {
@@ -41,7 +42,12 @@ export function LiveSessionsPage() {
       <PageHeader
         title="Live Sessions"
         description="Review active and recently active banking sessions, inspect their current transfer context, and open any flagged session for a deeper analyst review."
-        actions={<Badge variant="info">Polling every 5 seconds</Badge>}
+        actions={
+          <>
+            <Badge variant="info">Polling every 5 seconds</Badge>
+            <SessionFilters />
+          </>
+        }
       />
 
       <Card>

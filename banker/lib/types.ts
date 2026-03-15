@@ -68,6 +68,10 @@ export interface TelemetryEvent {
   elementId?: string;
   timestamp: string;
   metadata?: Record<string, unknown>;
+  userId?: string;
+  testRunId?: string;
+  agentId?: string;
+  scenarioId?: string;
 }
 
 export interface SessionSummary {
@@ -92,4 +96,9 @@ export interface SessionSummary {
   toAccountId: string;
   majorClickSequence: string[];
   areaPath: string[];
+  userId?: string;
+  testRunId?: string;
+  agentId?: string;
+  scenarioId?: string;
+  sessionCreatedAt?: string;
 }

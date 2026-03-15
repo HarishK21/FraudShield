@@ -2,9 +2,17 @@ import "server-only";
 
 import { getDb } from "@/lib/mongodb";
 import { demoAccounts, demoTransactions, demoUser } from "@/lib/demo-data";
-import { Account, BankSnapshot, DemoUser, SessionSummary, TelemetryEvent, Transaction, TransferRequest } from "@/lib/types";
-
-const DEMO_USER_ID = demoUser.id;
+import { getBankUserById } from "@/lib/test-users";
+import {
+  type Account,
+  type AccountId,
+  type BankSnapshot,
+  type DemoUser,
+  type SessionSummary,
+  type TelemetryEvent,
+  type Transaction,
+  type TransferRequest
+} from "@/lib/types";
 
 interface AccountDocument extends Account {
   userId: string;
@@ -20,30 +28,107 @@ interface TelemetryBatchInput {
   events: TelemetryEvent[];
 }
 
-function sortAccounts(accounts: Account[]) {
-  const accountOrder = ["chequing", "savings"];
-  return [...accounts].sort((left, right) => accountOrder.indexOf(left.id) - accountOrder.indexOf(right.id));
+function asRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
 }
 
-async function seedDemoData() {
+function asOptionalString(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  return undefined;
+}
+
+function sortAccounts(accounts: Account[]) {
+  const accountOrder = ["chequing", "savings"];
+  return [...accounts].sort(
+    (left, right) => accountOrder.indexOf(left.id) - accountOrder.indexOf(right.id)
+  );
+}
+
+function parseUserOrdinal(userId: string) {
+  if (userId === demoUser.id) {
+    return 0;
+  }
+
+  const match = /test-user-(\d+)/i.exec(userId);
+  if (!match) {
+    return 0;
+  }
+
+  return Number.parseInt(match[1] ?? "0", 10) || 0;
+}
+
+function pseudoHash(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return Math.abs(hash);
+}
+
+function buildMaskedNumber(userId: string, accountId: AccountId) {
+  const suffixSeed = pseudoHash(`${userId}-${accountId}`);
+  const suffix = String((suffixSeed % 9000) + 1000).padStart(4, "0");
+  return `**** ${suffix}`;
+}
+
+function buildSeedAccounts(userId: string) {
+  const ordinal = parseUserOrdinal(userId);
+
+  return demoAccounts.map((account, index) => ({
+    ...account,
+    maskedNumber: buildMaskedNumber(userId, account.id),
+    balance: roundCurrency(account.balance + ordinal * (index === 0 ? 37.11 : 83.47))
+  }));
+}
+
+function buildSeedTransactions(userId: string) {
+  return demoTransactions.map((transaction) => ({
+    ...transaction,
+    id: `${transaction.id}-${userId}`
+  }));
+}
+
+function getRequiredUser(userId: string) {
+  const user = getBankUserById(userId);
+  if (!user) {
+    throw new Error(`Unknown bank user: ${userId}`);
+  }
+
+  return user;
+}
+
+async function seedUserData(userId: string) {
+  const user = getRequiredUser(userId);
   const db = await getDb();
-  const users = db.collection("users");
+  const users = db.collection<DemoUser>("users");
   const accounts = db.collection<AccountDocument>("accounts");
   const transactions = db.collection<TransactionDocument>("transactions");
+  const seedAccounts = buildSeedAccounts(userId);
+  const seedTransactions = buildSeedTransactions(userId);
 
-  await users.updateOne({ id: DEMO_USER_ID }, { $setOnInsert: demoUser }, { upsert: true });
+  await users.updateOne({ id: user.id }, { $setOnInsert: user }, { upsert: true });
 
   await Promise.all(
-    demoAccounts.map((account) =>
+    seedAccounts.map((account) =>
       accounts.updateOne(
         {
           id: account.id,
-          userId: DEMO_USER_ID
+          userId
         },
         {
           $setOnInsert: {
             ...account,
-            userId: DEMO_USER_ID
+            userId
           }
         },
         { upsert: true }
@@ -52,16 +137,16 @@ async function seedDemoData() {
   );
 
   await Promise.all(
-    demoTransactions.map((transaction) =>
+    seedTransactions.map((transaction) =>
       transactions.updateOne(
         {
           id: transaction.id,
-          userId: DEMO_USER_ID
+          userId
         },
         {
           $setOnInsert: {
             ...transaction,
-            userId: DEMO_USER_ID
+            userId
           }
         },
         { upsert: true }
@@ -70,14 +155,15 @@ async function seedDemoData() {
   );
 }
 
-export async function getBankSnapshot(): Promise<BankSnapshot> {
-  await seedDemoData();
+export async function getBankSnapshot(userId: string): Promise<BankSnapshot> {
+  await seedUserData(userId);
+  const fallbackUser = getRequiredUser(userId);
 
   const db = await getDb();
   const user = await db
-    .collection("users")
+    .collection<DemoUser>("users")
     .findOne(
-      { id: DEMO_USER_ID },
+      { id: userId },
       {
         projection: {
           _id: 0
@@ -86,19 +172,19 @@ export async function getBankSnapshot(): Promise<BankSnapshot> {
     );
   const accounts = await db
     .collection<AccountDocument>("accounts")
-    .find({ userId: DEMO_USER_ID })
+    .find({ userId })
     .project<Account>({ _id: 0, userId: 0 })
     .toArray();
   const transactions = await db
     .collection<TransactionDocument>("transactions")
-    .find({ userId: DEMO_USER_ID })
+    .find({ userId })
     .sort({ occurredAt: -1 })
     .project<Transaction>({ _id: 0, userId: 0 })
     .toArray();
 
   return {
     user: {
-      ...demoUser,
+      ...fallbackUser,
       ...(user ?? {})
     },
     accounts: sortAccounts(accounts),
@@ -114,16 +200,23 @@ function roundCurrency(value: number) {
   return Number(value.toFixed(2));
 }
 
-export async function createTransfer(payload: TransferRequest): Promise<BankSnapshot> {
-  await seedDemoData();
+function isAccountId(value: string): value is AccountId {
+  return value === "chequing" || value === "savings";
+}
+
+export async function createTransfer(
+  userId: string,
+  payload: TransferRequest
+): Promise<BankSnapshot> {
+  await seedUserData(userId);
 
   const db = await getDb();
   const accountsCollection = db.collection<AccountDocument>("accounts");
   const transactionsCollection = db.collection<TransactionDocument>("transactions");
 
   const [fromAccount, toAccount] = await Promise.all([
-    accountsCollection.findOne({ userId: DEMO_USER_ID, id: payload.fromAccountId }),
-    accountsCollection.findOne({ userId: DEMO_USER_ID, id: payload.toAccountId })
+    accountsCollection.findOne({ userId, id: payload.fromAccountId }),
+    accountsCollection.findOne({ userId, id: payload.toAccountId })
   ]);
 
   if (!fromAccount || !toAccount) {
@@ -146,7 +239,7 @@ export async function createTransfer(payload: TransferRequest): Promise<BankSnap
   const amount = roundCurrency(payload.amount);
   const transaction: TransactionDocument = {
     id: `txn-${crypto.randomUUID()}`,
-    userId: DEMO_USER_ID,
+    userId,
     type: "transfer",
     title: transferTitle(toAccount.name),
     subtitle: payload.note?.trim() ? payload.note.trim() : "Instant transfer",
@@ -159,7 +252,7 @@ export async function createTransfer(payload: TransferRequest): Promise<BankSnap
 
   await Promise.all([
     accountsCollection.updateOne(
-      { userId: DEMO_USER_ID, id: payload.fromAccountId },
+      { userId, id: payload.fromAccountId },
       {
         $set: {
           balance: roundCurrency(fromAccount.balance - amount),
@@ -168,7 +261,7 @@ export async function createTransfer(payload: TransferRequest): Promise<BankSnap
       }
     ),
     accountsCollection.updateOne(
-      { userId: DEMO_USER_ID, id: payload.toAccountId },
+      { userId, id: payload.toAccountId },
       {
         $set: {
           balance: roundCurrency(toAccount.balance + amount),
@@ -179,52 +272,140 @@ export async function createTransfer(payload: TransferRequest): Promise<BankSnap
     transactionsCollection.insertOne(transaction)
   ]);
 
-  return getBankSnapshot();
+  return getBankSnapshot(userId);
 }
 
-export async function updateUserProfile(payload: Partial<DemoUser>): Promise<BankSnapshot> {
-  await seedDemoData();
+export async function updateUserProfile(
+  userId: string,
+  payload: Partial<DemoUser>
+): Promise<BankSnapshot> {
+  await seedUserData(userId);
   const db = await getDb();
-  
+
   await db.collection("users").updateOne(
-    { id: DEMO_USER_ID },
+    { id: userId },
     { $set: payload }
   );
 
-  return getBankSnapshot();
+  return getBankSnapshot(userId);
 }
 
-export async function resetDemoData(): Promise<BankSnapshot> {
+export async function resetUserData(userId: string): Promise<BankSnapshot> {
+  const user = getRequiredUser(userId);
   const db = await getDb();
-  
-  // Clear existing demo data
-  await db.collection("users").deleteOne({ id: DEMO_USER_ID });
-  await db.collection("accounts").deleteMany({ userId: DEMO_USER_ID });
-  await db.collection("transactions").deleteMany({ userId: DEMO_USER_ID });
-  
-  // Re-seed with fresh data
-  await seedDemoData();
-  
-  return getBankSnapshot();
+
+  await db.collection("users").updateOne(
+    { id: userId },
+    { $set: user },
+    { upsert: true }
+  );
+  await db.collection("accounts").deleteMany({ userId });
+  await db.collection("transactions").deleteMany({ userId });
+  await db.collection("telemetry_events").deleteMany({ userId });
+  await db.collection("telemetry_sessions").deleteMany({ userId });
+
+  await seedUserData(userId);
+  return getBankSnapshot(userId);
 }
 
-export async function saveTelemetryBatch(payload: TelemetryBatchInput) {
-  await seedDemoData();
+export async function createDeposit(
+  userId: string,
+  accountId: string,
+  amount: number
+): Promise<BankSnapshot> {
+  await seedUserData(userId);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Deposit amount must be greater than zero.");
+  }
+
+  if (!isAccountId(accountId)) {
+    throw new Error("Deposit account must be a valid account ID.");
+  }
+
+  const db = await getDb();
+  const accountsCollection = db.collection<AccountDocument>("accounts");
+  const transactionsCollection = db.collection<TransactionDocument>("transactions");
+  const account = await accountsCollection.findOne({
+    userId,
+    id: accountId
+  });
+
+  if (!account) {
+    throw new Error("The target account could not be found.");
+  }
+
+  const createdAt = new Date().toISOString();
+  const roundedAmount = roundCurrency(amount);
+  const transaction: TransactionDocument = {
+    id: `txn-${crypto.randomUUID()}`,
+    userId,
+    type: "deposit",
+    title: "Quick Deposit",
+    subtitle: "Synthetic funds injected for testing",
+    amount: roundedAmount,
+    direction: "in",
+    accountId,
+    occurredAt: createdAt
+  };
+
+  await Promise.all([
+    accountsCollection.updateOne(
+      {
+        userId,
+        id: accountId
+      },
+      {
+        $set: {
+          balance: roundCurrency(account.balance + roundedAmount),
+          lastUpdated: createdAt
+        }
+      }
+    ),
+    transactionsCollection.insertOne(transaction)
+  ]);
+
+  return getBankSnapshot(userId);
+}
+
+export async function saveTelemetryBatch(
+  userId: string,
+  payload: TelemetryBatchInput
+) {
+  await seedUserData(userId);
 
   const db = await getDb();
   const eventsCollection = db.collection("telemetry_events");
   const sessionsCollection = db.collection("telemetry_sessions");
   const receivedAt = new Date().toISOString();
+  const source = payload.source ?? "northmaple-bank";
 
   if (payload.events.length) {
     await eventsCollection.insertMany(
-      payload.events.map((event) => ({
-        ...event,
-        userId: DEMO_USER_ID,
-        source: payload.source ?? "northmaple-bank",
-        sentAt: payload.sentAt,
-        receivedAt
-      }))
+      payload.events.map((event) => {
+        const metadata = asRecord(event.metadata);
+        const testRunId = asOptionalString(
+          event.testRunId ?? metadata.testRunId ?? metadata.test_run_id
+        );
+        const agentId = asOptionalString(
+          event.agentId ?? metadata.agentId ?? metadata.agent_id
+        );
+        const scenarioId = asOptionalString(
+          event.scenarioId ?? metadata.scenarioId ?? metadata.scenario_id
+        );
+
+        return {
+          ...event,
+          userId,
+          source,
+          sentAt: payload.sentAt,
+          receivedAt,
+          metadata,
+          testRunId,
+          agentId,
+          scenarioId
+        };
+      })
     );
   }
 
@@ -236,14 +417,33 @@ export async function saveTelemetryBatch(payload: TelemetryBatchInput) {
   await Promise.all(
     sessionSummaries.map((summaryEvent) =>
       sessionsCollection.updateOne(
-        { sessionId: summaryEvent.sessionId },
+        {
+          userId,
+          sessionId: summaryEvent.sessionId
+        },
         {
           $set: {
-            userId: DEMO_USER_ID,
+            userId,
             sessionId: summaryEvent.sessionId,
             page: summaryEvent.page,
-            metadata: summaryEvent.metadata,
-            updatedAt: receivedAt
+            source,
+            metadata: asRecord(summaryEvent.metadata),
+            updatedAt: receivedAt,
+            testRunId: asOptionalString(
+              summaryEvent.testRunId ??
+                summaryEvent.metadata?.testRunId ??
+                summaryEvent.metadata?.test_run_id
+            ),
+            agentId: asOptionalString(
+              summaryEvent.agentId ??
+                summaryEvent.metadata?.agentId ??
+                summaryEvent.metadata?.agent_id
+            ),
+            scenarioId: asOptionalString(
+              summaryEvent.scenarioId ??
+                summaryEvent.metadata?.scenarioId ??
+                summaryEvent.metadata?.scenario_id
+            )
           }
         },
         { upsert: true }

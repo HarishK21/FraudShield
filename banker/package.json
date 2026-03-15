@@ -6,7 +6,11 @@
     "dev": "set NODE_TLS_REJECT_UNAUTHORIZED=0&& next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck",
+    "test:harness": "node testing/session-harness/simulate-session-batch.js",
+    "test:harness:ramp": "node testing/session-harness/simulate-session-batch.js --phase=ramp",
+    "test:harness:scale50": "node testing/session-harness/simulate-session-batch.js --phase=scale50"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

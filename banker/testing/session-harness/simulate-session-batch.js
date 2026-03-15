@@ -3,8 +3,35 @@ const path = require("path");
 const fs = require("fs/promises");
 const { chromium } = require("playwright");
 
-const BANK_URL = "http://localhost:3000";
-const FRAUD_SESSIONS_API = "http://localhost:3001/api/fraud/sessions";
+const DEFAULT_BANK_URL = process.env.BANK_URL ?? "http://localhost:3000";
+const DEFAULT_FRAUD_SESSIONS_API =
+  process.env.FRAUD_SESSIONS_API ?? "http://localhost:3001/api/fraud/sessions";
+const DEFAULT_TEST_USER_COUNT = Number.parseInt(
+  process.env.TEST_USER_COUNT ?? "50",
+  10
+);
+const OUTPUT_DIR = path.join(process.cwd(), "testing", "session-harness", "latest");
+const TEMP_VIDEO_DIR = path.join(OUTPUT_DIR, ".tmp-video");
+
+const PHASE_PRESETS = {
+  smoke: {
+    total: 4,
+    concurrency: 2,
+    flaggedRatio: 0.5
+  },
+  ramp: {
+    total: 20,
+    concurrency: 5,
+    flaggedRatio: 0.4
+  },
+  scale50: {
+    total: 50,
+    concurrency: 10,
+    flaggedRatio: 0.4
+  }
+};
+
+const CAPTURE_MODES = new Set(["none", "sample", "all"]);
 
 function runLabel() {
   const now = new Date();
@@ -17,12 +44,103 @@ function runLabel() {
   return `${yyyy}${mm}${dd}-${hh}${min}${sec}`;
 }
 
+function toRepoPath(filePath) {
+  return path.relative(process.cwd(), filePath).replace(/\\/g, "/");
+}
+
+function asBoolean(value, fallback = false) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "y"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "n"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+}
+
+function asNumber(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseArgs(argv) {
+  const parsed = {};
+
+  for (const raw of argv) {
+    if (!raw.startsWith("--")) {
+      continue;
+    }
+
+    const [key, value] = raw.slice(2).split("=");
+    parsed[key] = value ?? "true";
+  }
+
+  return parsed;
+}
+
+function getConfig() {
+  const args = parseArgs(process.argv.slice(2));
+  const phase = args.phase && PHASE_PRESETS[args.phase] ? args.phase : "smoke";
+  const preset = PHASE_PRESETS[phase];
+  const captureMode = CAPTURE_MODES.has(args.capture) ? args.capture : "sample";
+  const testUserCount =
+    Number.isFinite(DEFAULT_TEST_USER_COUNT) && DEFAULT_TEST_USER_COUNT > 0
+      ? DEFAULT_TEST_USER_COUNT
+      : 50;
+
+  const total = Math.max(1, Math.floor(asNumber(args.total, preset.total)));
+  const concurrency = Math.max(
+    1,
+    Math.floor(asNumber(args.concurrency, preset.concurrency))
+  );
+  const flaggedRatioRaw = asNumber(args.flaggedRatio, preset.flaggedRatio);
+  const flaggedRatio = Math.max(0, Math.min(1, flaggedRatioRaw));
+
+  return {
+    runId: args.runId ?? runLabel(),
+    phase,
+    total,
+    concurrency,
+    flaggedRatio,
+    captureMode,
+    headless: asBoolean(args.headless, true),
+    bankUrl: args.bankUrl ?? DEFAULT_BANK_URL,
+    fraudSessionsApi: args.fraudUrl ?? DEFAULT_FRAUD_SESSIONS_API,
+    testUserCount
+  };
+}
+
+function buildUserId(index, userCount) {
+  const slot = (index % userCount) + 1;
+  return `test-user-${String(slot).padStart(3, "0")}`;
+}
+
 async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
+async function ensureCleanOutputDir() {
+  await ensureDir(OUTPUT_DIR);
+  const entries = await fs.readdir(OUTPUT_DIR).catch(() => []);
+  await Promise.all(
+    entries.map((entry) => fs.rm(path.join(OUTPUT_DIR, entry), { recursive: true, force: true }))
+  );
+  await ensureDir(TEMP_VIDEO_DIR);
+}
+
 async function waitFor(conditionFn, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 25_000;
+  const timeoutMs = options.timeoutMs ?? 45_000;
   const intervalMs = options.intervalMs ?? 700;
   const startedAt = Date.now();
 
@@ -31,16 +149,34 @@ async function waitFor(conditionFn, options = {}) {
     if (value) {
       return value;
     }
+
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
 
   throw new Error(options.message ?? "Timed out waiting for condition.");
 }
 
-async function fetchFraudSessions() {
-  const response = await fetch(FRAUD_SESSIONS_API, { cache: "no-store" });
+function buildFraudUrl(baseUrl, filters = {}) {
+  const url = new URL(baseUrl);
+  if (filters.testRunId) {
+    url.searchParams.set("testRunId", filters.testRunId);
+  }
+  if (filters.userId) {
+    url.searchParams.set("userId", filters.userId);
+  }
+  if (filters.agentId) {
+    url.searchParams.set("agentId", filters.agentId);
+  }
+  if (filters.scenarioId) {
+    url.searchParams.set("scenarioId", filters.scenarioId);
+  }
+  return url.toString();
+}
+
+async function fetchFraudSessions(baseUrl, filters = {}) {
+  const response = await fetch(buildFraudUrl(baseUrl, filters), { cache: "no-store" });
   if (!response.ok) {
-    throw new Error(`Failed to fetch sessions from ${FRAUD_SESSIONS_API}.`);
+    throw new Error(`Failed to fetch sessions from ${buildFraudUrl(baseUrl, filters)}.`);
   }
 
   const payload = await response.json();
@@ -51,46 +187,80 @@ async function fetchFraudSessions() {
   return payload;
 }
 
-async function waitForNewSession(seenSessionIds, scenarioName) {
-  return waitFor(async () => {
-    const sessions = await fetchFraudSessions();
-    const newest = sessions.find((session) => !seenSessionIds.has(session.sessionId));
-    return newest ?? null;
-  }, {
-    timeoutMs: 35_000,
-    intervalMs: 1_000,
-    message: `No new session detected after ${scenarioName}.`
-  });
+async function waitForRunSessions(fraudApi, runId, minCount) {
+  return waitFor(
+    async () => {
+      const sessions = await fetchFraudSessions(fraudApi, { testRunId: runId });
+      return sessions.length >= minCount ? sessions : null;
+    },
+    {
+      timeoutMs: 90_000,
+      intervalMs: 1_200,
+      message: `Did not observe ${minCount} sessions for run ${runId}.`
+    }
+  );
 }
 
-async function enableMonitoring(page) {
-  await page.goto(BANK_URL, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Save preference" }).click();
-  await page.waitForTimeout(500);
+async function maybeAcceptConsent(page) {
+  const savePreference = page.getByRole("button", { name: "Save preference" });
+  if (await savePreference.count()) {
+    await savePreference.first().click();
+    await page.waitForTimeout(400);
+  }
 }
 
-async function gotoTransfer(page) {
+async function loginAsUser(page, config, item) {
+  const loginUrl = new URL("/login", config.bankUrl);
+  loginUrl.searchParams.set("userId", item.userId);
+  loginUrl.searchParams.set("autologin", "1");
+  loginUrl.searchParams.set("returnTo", "/");
+  loginUrl.searchParams.set("test_run_id", config.runId);
+  loginUrl.searchParams.set("agent_id", item.agentId);
+  loginUrl.searchParams.set("scenario_id", item.scenarioId);
+
+  await page.goto(loginUrl.toString(), { waitUntil: "networkidle" });
+  await waitFor(
+    async () => (page.url().includes("/login") ? null : true),
+    {
+      timeoutMs: 15_000,
+      intervalMs: 350,
+      message: `Login did not complete for ${item.agentId}.`
+    }
+  );
+  await maybeAcceptConsent(page);
+}
+
+async function gotoTransfer(page, options = {}) {
+  const waitBeforeNavMs = options.waitBeforeNavMs ?? 0;
+  if (waitBeforeNavMs > 0) {
+    await page.waitForTimeout(waitBeforeNavMs);
+  }
+
   await page.locator('[data-telemetry-id="nav-transfer"]').first().click();
-  await page.waitForURL("**/transfer");
-  await page.waitForTimeout(350);
+  await page.waitForURL("**/transfer**");
+  await page.waitForTimeout(300);
 }
 
 async function gotoActivity(page) {
   await page.locator('[data-telemetry-id="nav-activity"]').first().click();
-  await page.waitForURL("**/activity");
-  await page.waitForTimeout(500);
+  await page.waitForURL("**/activity**");
+  await page.waitForTimeout(450);
+}
+
+async function fillTransfer(page, options) {
+  const amountInput = page.locator('input[data-telemetry-field="amount"]');
+  await amountInput.fill("");
+  await amountInput.type(options.amount, { delay: options.amountKeyDelay ?? 14 });
+
+  const note = page.locator('textarea[data-telemetry-field="note"]');
+  await note.fill("");
+  if (options.noteText) {
+    await note.type(options.noteText, { delay: options.noteKeyDelay ?? 16 });
+  }
 }
 
 async function submitTransfer(page, options) {
-  const amountInput = page.locator('input[data-telemetry-field="amount"]');
-  await amountInput.click();
-  await page.keyboard.type(options.amount, { delay: 10 });
-
-  if (options.noteText) {
-    const note = page.locator('textarea[data-telemetry-field="note"]');
-    await note.click();
-    await page.keyboard.type(options.noteText, { delay: 12 });
-  }
+  await fillTransfer(page, options);
 
   if (options.preReviewWaitMs > 0) {
     await page.waitForTimeout(options.preReviewWaitMs);
@@ -105,36 +275,39 @@ async function submitTransfer(page, options) {
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Submit Transfer" }).click();
 
-  await waitFor(async () => {
-    const count = await page.locator("text=Transfer complete").first().count();
-    return count > 0 ? true : null;
-  }, {
-    timeoutMs: 12_000,
-    intervalMs: 500,
-    message: "Transfer did not complete."
-  });
+  await waitFor(
+    async () => {
+      const count = await page.locator("text=Transfer complete").first().count();
+      return count > 0 ? true : null;
+    },
+    {
+      timeoutMs: 12_000,
+      intervalMs: 500,
+      message: "Transfer did not complete in time."
+    }
+  );
 }
 
-async function doErraticMouse(page) {
-  let x = 330;
-  let y = 410;
+async function doErraticMouse(page, iterations = 34) {
+  let x = 320;
+  let y = 390;
   await page.mouse.move(x, y);
 
-  for (let i = 0; i < 36; i += 1) {
-    x += i % 2 === 0 ? 180 : -180;
-    y += i % 4 < 2 ? 120 : -120;
+  for (let index = 0; index < iterations; index += 1) {
+    x += index % 2 === 0 ? 190 : -190;
+    y += index % 3 === 0 ? 140 : -120;
     await page.mouse.move(x, y);
-    await page.waitForTimeout(90);
+    await page.waitForTimeout(80);
   }
 }
 
 async function doRapidNavigation(page) {
-  const sequence = ["accounts", "transfer", "activity", "transfer"];
+  const sequence = ["accounts", "transfer", "activity", "transfer", "accounts", "transfer"];
   for (const name of sequence) {
     await page.locator(`[data-telemetry-id="nav-${name}"]`).first().click();
     await page.waitForTimeout(220);
   }
-  await page.waitForURL("**/transfer");
+  await page.waitForURL("**/transfer**");
 }
 
 async function doHesitationBursts(page) {
@@ -142,185 +315,359 @@ async function doHesitationBursts(page) {
   await note.click();
   for (const value of ["a", "ab", "abc", "abcd"]) {
     await note.fill(value);
-    await page.waitForTimeout(1_750);
+    await page.waitForTimeout(1_650);
   }
 }
 
-async function runScenario(browser, scenario, outputDir) {
-  const context = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
-    recordVideo: {
-      dir: outputDir,
-      size: { width: 1280, height: 720 }
-    }
-  });
-  const page = await context.newPage();
-  const videoHandle = page.video();
-
-  try {
-    await enableMonitoring(page);
-    await scenario.flow(page);
-    await gotoActivity(page);
-
-    const screenshotPath = path.join(outputDir, `${scenario.name}-activity.png`);
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-
-    await context.close();
-
-    const rawVideoPath = await videoHandle.path();
-    const finalVideoPath = path.join(outputDir, `${scenario.name}.webm`);
-    await fs.copyFile(rawVideoPath, finalVideoPath);
-
-    return {
-      screenshotPath,
-      videoPath: finalVideoPath
-    };
-  } catch (error) {
-    await context.close();
-    throw error;
+async function doRapidRepeatClicks(page) {
+  const navTransfer = page.locator('[data-telemetry-id="nav-transfer"]').first();
+  for (let index = 0; index < 4; index += 1) {
+    await navTransfer.click();
+    await page.waitForTimeout(120);
   }
 }
 
-function defineScenarios() {
-  return [
+function getScenarioTemplates() {
+  const normal = [
     {
-      name: "normal-01",
+      scenarioId: "normal-steady-review",
       target: "unflagged",
       flow: async (page) => {
-        await gotoTransfer(page);
-        await page.waitForTimeout(1_000);
-        await submitTransfer(page, {
-          amount: "10",
-          noteText: "routine transfer",
-          preReviewWaitMs: 8_500,
-          reviewWaitMs: 6_500
-        });
-      }
-    },
-    {
-      name: "normal-02",
-      target: "unflagged",
-      flow: async (page) => {
-        await gotoTransfer(page);
+        await gotoTransfer(page, { waitBeforeNavMs: 2200 });
         await page.waitForTimeout(1_200);
         await submitTransfer(page, {
           amount: "10",
-          noteText: "monthly transfer",
-          preReviewWaitMs: 9_000,
+          noteText: "routine internal transfer",
+          preReviewWaitMs: 8_000,
           reviewWaitMs: 6_000
         });
       }
     },
     {
-      name: "flagged-01",
-      target: "flagged",
+      scenarioId: "normal-careful-typing",
+      target: "unflagged",
       flow: async (page) => {
-        await gotoTransfer(page);
-        await doRapidNavigation(page);
-        await doErraticMouse(page);
-        await doHesitationBursts(page);
+        await gotoTransfer(page, { waitBeforeNavMs: 2200 });
+        await page.waitForTimeout(1_400);
         await submitTransfer(page, {
           amount: "10",
-          noteText: "",
-          preReviewWaitMs: 0,
-          reviewWaitMs: 800
-        });
-      }
-    },
-    {
-      name: "flagged-02",
-      target: "flagged",
-      flow: async (page) => {
-        await gotoTransfer(page);
-        await doRapidNavigation(page);
-        await doErraticMouse(page);
-        await doHesitationBursts(page);
-        await submitTransfer(page, {
-          amount: "10",
-          noteText: "",
-          preReviewWaitMs: 0,
-          reviewWaitMs: 600
+          noteText: "monthly transfer",
+          preReviewWaitMs: 9_000,
+          reviewWaitMs: 5_500
         });
       }
     }
   ];
+
+  const flagged = [
+    {
+      scenarioId: "flagged-erratic-nav",
+      target: "flagged",
+      flow: async (page) => {
+        await gotoTransfer(page);
+        await doRapidNavigation(page);
+        await doErraticMouse(page);
+        await doRapidRepeatClicks(page);
+        await submitTransfer(page, {
+          amount: "10",
+          noteText: "",
+          preReviewWaitMs: 300,
+          reviewWaitMs: 700
+        });
+      }
+    },
+    {
+      scenarioId: "flagged-drift-bursts",
+      target: "flagged",
+      flow: async (page) => {
+        await gotoTransfer(page);
+        await doHesitationBursts(page);
+        await doRapidNavigation(page);
+        await doErraticMouse(page, 38);
+        await submitTransfer(page, {
+          amount: "10",
+          noteText: "",
+          preReviewWaitMs: 250,
+          reviewWaitMs: 500
+        });
+      }
+    }
+  ];
+
+  return { normal, flagged };
 }
 
-function toSessionSummary(session, artifacts, scenario) {
+function buildRunPlan(config) {
+  const templates = getScenarioTemplates();
+  const flaggedTargetCount = Math.round(config.total * config.flaggedRatio);
+  let flaggedRemaining = flaggedTargetCount;
+  let unflaggedRemaining = config.total - flaggedTargetCount;
+  let flaggedIndex = 0;
+  let normalIndex = 0;
+  let flaggedCaptureCount = 0;
+  let normalCaptureCount = 0;
+
+  return Array.from({ length: config.total }, (_, index) => {
+    const preferFlagged = index % 2 === 1;
+    const useFlagged =
+      (preferFlagged && flaggedRemaining > 0) ||
+      (unflaggedRemaining === 0 && flaggedRemaining > 0);
+
+    const target = useFlagged ? "flagged" : "unflagged";
+    const templateList = useFlagged ? templates.flagged : templates.normal;
+    const templateIndex = useFlagged ? flaggedIndex : normalIndex;
+    const template = templateList[templateIndex % templateList.length];
+
+    if (useFlagged) {
+      flaggedIndex += 1;
+      flaggedRemaining -= 1;
+    } else {
+      normalIndex += 1;
+      unflaggedRemaining -= 1;
+    }
+
+    let captureArtifacts = false;
+    if (config.captureMode === "all") {
+      captureArtifacts = true;
+    } else if (config.captureMode === "sample") {
+      if (target === "flagged" && flaggedCaptureCount < 2) {
+        captureArtifacts = true;
+        flaggedCaptureCount += 1;
+      } else if (target === "unflagged" && normalCaptureCount < 2) {
+        captureArtifacts = true;
+        normalCaptureCount += 1;
+      }
+    }
+
+    const sequence = useFlagged ? flaggedIndex : normalIndex;
+    return {
+      name: `${target}-${String(sequence).padStart(3, "0")}`,
+      target,
+      userId: buildUserId(index, config.testUserCount),
+      agentId: `agent-${String(index + 1).padStart(3, "0")}`,
+      scenarioId: template.scenarioId,
+      flow: template.flow,
+      captureArtifacts
+    };
+  });
+}
+
+async function runWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (true) {
+      const current = nextIndex;
+      nextIndex += 1;
+      if (current >= items.length) {
+        return;
+      }
+
+      results[current] = await worker(items[current], current);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => runWorker()
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+async function runScenario(browser, config, item) {
+  const startedAt = Date.now();
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    ...(item.captureArtifacts
+      ? {
+          recordVideo: {
+            dir: TEMP_VIDEO_DIR,
+            size: { width: 1280, height: 720 }
+          }
+        }
+      : {})
+  });
+  const page = await context.newPage();
+  const video = item.captureArtifacts ? page.video() : null;
+
+  try {
+    await loginAsUser(page, config, item);
+    await item.flow(page);
+    await gotoActivity(page);
+
+    let screenshotPath = null;
+    if (item.captureArtifacts) {
+      screenshotPath = path.join(OUTPUT_DIR, `${item.name}-activity.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+    }
+
+    await context.close();
+
+    let finalVideoPath = null;
+    if (video) {
+      const rawVideoPath = await video.path();
+      finalVideoPath = path.join(OUTPUT_DIR, `${item.name}.webm`);
+      await fs.copyFile(rawVideoPath, finalVideoPath);
+      await fs.rm(rawVideoPath, { force: true });
+    }
+
+    return {
+      ...item,
+      status: "completed",
+      durationMs: Date.now() - startedAt,
+      artifacts: {
+        screenshotPath: screenshotPath ? toRepoPath(screenshotPath) : null,
+        videoPath: finalVideoPath ? toRepoPath(finalVideoPath) : null
+      }
+    };
+  } catch (error) {
+    await context.close().catch(() => null);
+    return {
+      ...item,
+      status: "failed",
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+      artifacts: {
+        screenshotPath: null,
+        videoPath: null
+      }
+    };
+  }
+}
+
+function resolveSessionForRunItem(runSessions, runItem) {
+  return (
+    runSessions
+      .filter((session) => session.agentId === runItem.agentId)
+      .sort((left, right) =>
+        right.summary.lastEventTime.localeCompare(left.summary.lastEventTime)
+      )[0] ?? null
+  );
+}
+
+function summarizeResults(runResults) {
+  const successful = runResults.filter((item) => item.status === "completed");
+  const failed = runResults.filter((item) => item.status === "failed");
+
   return {
-    scenario: scenario.name,
-    target: scenario.target,
-    sessionId: session.sessionId,
-    score: session.summary.currentRiskScore,
-    status: session.summary.status,
-    topFlags: session.summary.topFlags,
-    reasonCodes: session.summary.reasonCodes,
-    videoPath: artifacts.videoPath,
-    activityScreenshotPath: artifacts.screenshotPath
+    planned: runResults.length,
+    completed: successful.length,
+    failed: failed.length
   };
-}
-
-function countFlagged(sessions) {
-  const alertFlagged = sessions.filter((item) => item.score >= 30).length;
-  const highRisk = sessions.filter((item) => item.status === "High Risk").length;
-  const normal = sessions.filter((item) => item.status === "Normal").length;
-  const watch = sessions.filter((item) => item.status === "Watch").length;
-
-  return { alertFlagged, highRisk, normal, watch };
 }
 
 async function main() {
-  const scenarios = defineScenarios();
-  const batchId = runLabel();
-  const runDir = path.join(process.cwd(), "testing", "session-harness", "latest");
-  await ensureDir(runDir);
-  const existing = await fs.readdir(runDir).catch(() => []);
-  await Promise.all(
-    existing.map((entry) => fs.rm(path.join(runDir, entry), { recursive: true, force: true }))
+  const config = getConfig();
+  const runPlan = buildRunPlan(config);
+
+  console.log(
+    `[session-harness] phase=${config.phase} runId=${config.runId} total=${config.total} concurrency=${config.concurrency} capture=${config.captureMode}`
   );
 
-  const initialSessions = await fetchFraudSessions();
-  const seenSessionIds = new Set(initialSessions.map((session) => session.sessionId));
-
-  const browser = await chromium.launch({ headless: true });
-  const completed = [];
-
+  await ensureCleanOutputDir();
   try {
-    for (const scenario of scenarios) {
-      const artifacts = await runScenario(browser, scenario, runDir);
-      const session = await waitForNewSession(seenSessionIds, scenario.name);
-      seenSessionIds.add(session.sessionId);
-      completed.push(toSessionSummary(session, artifacts, scenario));
+    const initialForRun = await fetchFraudSessions(config.fraudSessionsApi, {
+      testRunId: config.runId
+    });
+
+    const browser = await chromium.launch({ headless: config.headless });
+    const startedAt = new Date().toISOString();
+    let runResults = [];
+
+    try {
+      runResults = await runWithConcurrency(runPlan, config.concurrency, (item) =>
+        runScenario(browser, config, item)
+      );
+    } finally {
+      await browser.close();
     }
+
+    const successfulCount = runResults.filter((item) => item.status === "completed").length;
+    if (successfulCount > 0) {
+      await waitForRunSessions(config.fraudSessionsApi, config.runId, successfulCount);
+    }
+
+    const runSessions = await fetchFraudSessions(config.fraudSessionsApi, {
+      testRunId: config.runId
+    });
+    const totals = summarizeResults(runResults);
+    const sessionDetails = runResults.map((result) => {
+      const matchedSession = resolveSessionForRunItem(runSessions, result);
+      const observedFlagged =
+        matchedSession && matchedSession.summary.status !== "Normal";
+      const expectedFlagged = result.target === "flagged";
+
+      return {
+        ...result,
+        sessionId: matchedSession?.sessionId ?? null,
+        score: matchedSession?.summary.currentRiskScore ?? null,
+        statusLabel: matchedSession?.summary.status ?? null,
+        topFlags: matchedSession?.summary.topFlags ?? [],
+        reasonCodes: matchedSession?.summary.reasonCodes ?? [],
+        observedFlagged:
+          typeof observedFlagged === "boolean" ? observedFlagged : null,
+        expectedFlagged,
+        classification:
+          typeof observedFlagged === "boolean"
+            ? observedFlagged === expectedFlagged
+              ? "match"
+              : "mismatch"
+            : "missing"
+      };
+    });
+
+    const matchedClassifications = sessionDetails.filter(
+      (item) => item.classification === "match"
+    ).length;
+    const mismatchedClassifications = sessionDetails.filter(
+      (item) => item.classification === "mismatch"
+    ).length;
+    const missingClassifications = sessionDetails.filter(
+      (item) => item.classification === "missing"
+    ).length;
+    const observedFlaggedCount = sessionDetails.filter(
+      (item) => item.observedFlagged === true
+    ).length;
+    const observedUnflaggedCount = sessionDetails.filter(
+      (item) => item.observedFlagged === false
+    ).length;
+
+    const report = {
+      generatedAt: new Date().toISOString(),
+      startedAt,
+      runId: config.runId,
+      phase: config.phase,
+      config: {
+        total: config.total,
+        concurrency: config.concurrency,
+        flaggedRatio: config.flaggedRatio,
+        captureMode: config.captureMode,
+        bankUrl: config.bankUrl,
+        fraudSessionsApi: config.fraudSessionsApi,
+        headless: config.headless
+      },
+      totalsBeforeRun: initialForRun.length,
+      totalsAfterRun: runSessions.length,
+      execution: totals,
+      assertions: {
+        matchedClassifications,
+        mismatchedClassifications,
+        missingClassifications,
+        observedFlaggedCount,
+        observedUnflaggedCount
+      },
+      sessions: sessionDetails
+    };
+
+    const reportPath = path.join(OUTPUT_DIR, "report.json");
+    await fs.writeFile(reportPath, JSON.stringify(report, null, 2), "utf8");
+
+    console.log(JSON.stringify(report, null, 2));
   } finally {
-    await browser.close();
+    await fs.rm(TEMP_VIDEO_DIR, { recursive: true, force: true }).catch(() => null);
   }
-
-  const allSessions = await fetchFraudSessions();
-  const addedSessionIds = new Set(completed.map((item) => item.sessionId));
-  const cumulativeSummary = countFlagged(allSessions.map((session) => ({
-    score: session.summary.currentRiskScore,
-    status: session.summary.status
-  })));
-  const batchSummary = countFlagged(completed);
-
-  const report = {
-    generatedAt: new Date().toISOString(),
-    batchId,
-    runDir,
-    totalsBeforeRun: initialSessions.length,
-    totalsAfterRun: allSessions.length,
-    addedSessionCount: completed.length,
-    batchSummary,
-    cumulativeSummary,
-    sessions: completed,
-    allNewSessionIds: [...addedSessionIds]
-  };
-
-  const reportPath = path.join(runDir, "report.json");
-  await fs.writeFile(reportPath, JSON.stringify(report, null, 2), "utf8");
-
-  console.log(JSON.stringify(report, null, 2));
 }
 
 main().catch((error) => {

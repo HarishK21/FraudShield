@@ -4,6 +4,7 @@ import {
   loadScoredFraudSessions,
   shouldCreateCase
 } from "@/lib/fraud/session-pipeline";
+import { parseSessionFilterCriteria } from "@/lib/fraud/filter-query";
 import type { CaseRecord } from "@/lib/fraud/types";
 
 function getAnalystPool() {
@@ -24,11 +25,13 @@ function getAnalystPool() {
  *
  * Derives investigation cases from model-scored sessions.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const filters = parseSessionFilterCriteria(request);
     const { feedbackBySession, policy, sessions } = await loadScoredFraudSessions({
       sessionLimit: 250,
-      eventLimit: 5000
+      eventLimit: 5000,
+      filters
     });
     const analystPool = getAnalystPool();
 

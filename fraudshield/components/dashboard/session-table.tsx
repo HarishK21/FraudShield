@@ -26,6 +26,7 @@ export function SessionTable({
           <TableHead>Current Page</TableHead>
           <TableHead>Transfer</TableHead>
           <TableHead>Risk</TableHead>
+          <TableHead className={compact ? "hidden xl:table-cell" : ""}>Run Context</TableHead>
           <TableHead className={compact ? "hidden md:table-cell" : ""}>Top Flags</TableHead>
           <TableHead className={compact ? "hidden lg:table-cell" : ""}>Last Event</TableHead>
           <TableHead>Status</TableHead>
@@ -54,6 +55,14 @@ export function SessionTable({
                   {session.summary.currentRiskScore}
                 </span>
                 <RiskBadge value={session.summary.status} />
+              </div>
+            </TableCell>
+            <TableCell className={compact ? "hidden xl:table-cell" : ""}>
+              <div className="space-y-1 text-xs text-slate-400">
+                <p>{session.testRunId ?? "no-run"}</p>
+                <p>
+                  {(session.agentId ?? "no-agent")} / {session.scenarioId ?? "no-scenario"}
+                </p>
               </div>
             </TableCell>
             <TableCell className={compact ? "hidden md:table-cell" : ""}>

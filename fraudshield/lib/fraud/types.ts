@@ -50,6 +50,10 @@ export interface TelemetryEvent {
   page: string;
   eventType: TelemetryEventType;
   elementId?: string;
+  userId?: string;
+  testRunId?: string;
+  agentId?: string;
+  scenarioId?: string;
   dwellTime?: number;
   timeBeforeFirstClick?: number;
   clickSequence?: string[];
@@ -87,6 +91,9 @@ export interface SessionSummaryInput {
   sharpDirectionChanges: number;
   rapidRepeatedClicks: number;
   userId?: string;
+  testRunId?: string;
+  agentId?: string;
+  scenarioId?: string;
   sourceAccountId?: string;
   destinationAccountId?: string;
   sessionCreatedAt?: string;
@@ -161,6 +168,10 @@ export interface SessionSummary extends SessionSummaryInput {
 
 export interface FraudSession {
   sessionId: string;
+  userId?: string;
+  testRunId?: string;
+  agentId?: string;
+  scenarioId?: string;
   accountId: string;
   accountHolder: string;
   deviceLabel: string;
@@ -261,6 +272,13 @@ export interface OverviewMetrics {
 }
 
 export type DataSourceMode = "mock" | "live";
+
+export interface SessionFilterCriteria {
+  userId?: string;
+  testRunId?: string;
+  agentId?: string;
+  scenarioId?: string;
+}
 
 export interface FraudDashboardSnapshot {
   sessions: FraudSession[];

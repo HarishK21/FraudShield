@@ -23,6 +23,15 @@ interface BankState {
 
 let bootstrapPromise: Promise<void> | null = null;
 
+async function throwResponseError(response: Response, fallbackMessage: string) {
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.location.assign("/login");
+  }
+
+  const payload = await response.json().catch(() => null);
+  throw new Error(payload?.error ?? fallbackMessage);
+}
+
 async function fetchSnapshot() {
   const response = await fetch("/api/bank/state", {
     method: "GET",
@@ -30,8 +39,7 @@ async function fetchSnapshot() {
   });
 
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw new Error(payload?.error ?? "Unable to load demo banking data from MongoDB.");
+    await throwResponseError(response, "Unable to load demo banking data from MongoDB.");
   }
 
   return (await response.json()) as BankSnapshot;
@@ -47,8 +55,7 @@ async function postTransfer(payload: TransferRequest) {
   });
 
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    throw new Error(data?.error ?? "Unable to submit the demo transfer.");
+    await throwResponseError(response, "Unable to submit the demo transfer.");
   }
 
   return (await response.json()) as BankSnapshot;
@@ -62,8 +69,7 @@ async function postUserProfile(payload: Partial<DemoUser>) {
   });
 
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    throw new Error(data?.error ?? "Unable to update the user profile.");
+    await throwResponseError(response, "Unable to update the user profile.");
   }
 
   return (await response.json()) as BankSnapshot;
@@ -77,8 +83,7 @@ async function postDeposit(accountId: string, amount: number) {
   });
 
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    throw new Error(data?.error ?? "Unable to deposit funds.");
+    await throwResponseError(response, "Unable to deposit funds.");
   }
 
   return (await response.json()) as BankSnapshot;
@@ -90,8 +95,7 @@ async function postResetData() {
   });
 
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    throw new Error(data?.error ?? "Unable to reset the demo data.");
+    await throwResponseError(response, "Unable to reset the demo data.");
   }
 
   return (await response.json()) as BankSnapshot;
