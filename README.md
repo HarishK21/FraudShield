@@ -206,4 +206,3 @@ Survey answer: **Yes**. More than 70% of implementation and iteration work was A
 
 ---
 
-For live presentations, use `DEMO_SCRIPT.md` for a ready-to-read screenshare script 🎤
