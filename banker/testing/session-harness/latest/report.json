@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-03-15T00:28:05.541Z",
+  "batchId": "20260314-202654",
+  "runDir": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654",
+  "totalsBeforeRun": 2,
+  "totalsAfterRun": 6,
+  "addedSessionCount": 4,
+  "batchSummary": {
+    "alertFlagged": 2,
+    "highRisk": 2,
+    "normal": 2,
+    "watch": 0
+  },
+  "cumulativeSummary": {
+    "alertFlagged": 3,
+    "highRisk": 3,
+    "normal": 3,
+    "watch": 0
+  },
+  "sessions": [
+    {
+      "scenario": "normal-01",
+      "target": "unflagged",
+      "sessionId": "ad84f3ab-1257-4c5d-80ca-63789d12a974",
+      "score": 19,
+      "status": "Normal",
+      "topFlags": [
+        "Rapid Navigation",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "rapid-navigation",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "videoPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\normal-01.webm",
+      "activityScreenshotPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\normal-01-activity.png"
+    },
+    {
+      "scenario": "normal-02",
+      "target": "unflagged",
+      "sessionId": "5c61333e-0cf5-4e84-b517-b228b28c1044",
+      "score": 25,
+      "status": "Normal",
+      "topFlags": [
+        "Rapid Navigation",
+        "Velocity Spike",
+        "Unusual Amount"
+      ],
+      "reasonCodes": [
+        "rapid-navigation",
+        "velocity-spike",
+        "unusual-amount"
+      ],
+      "videoPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\normal-02.webm",
+      "activityScreenshotPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\normal-02-activity.png"
+    },
+    {
+      "scenario": "flagged-01",
+      "target": "flagged",
+      "sessionId": "07741067-4026-467b-a26d-82f1361fb2cd",
+      "score": 95,
+      "status": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Suspiciously Fast Submit"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "short-review-submit-delay"
+      ],
+      "videoPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\flagged-01.webm",
+      "activityScreenshotPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\flagged-01-activity.png"
+    },
+    {
+      "scenario": "flagged-02",
+      "target": "flagged",
+      "sessionId": "e96bf523-24bf-45ce-ab7f-d1e798ef62d5",
+      "score": 96,
+      "status": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Velocity Spike",
+        "Rapid Navigation"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "velocity-spike",
+        "rapid-navigation"
+      ],
+      "videoPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\flagged-02.webm",
+      "activityScreenshotPath": "C:\\Users\\light\\OneDrive\\Documents\\GitHub\\GenAIGenesis2026\\banker\\testing\\session-harness\\runs\\20260314-202654\\flagged-02-activity.png"
+    }
+  ],
+  "allNewSessionIds": [
+    "ad84f3ab-1257-4c5d-80ca-63789d12a974",
+    "5c61333e-0cf5-4e84-b517-b228b28c1044",
+    "07741067-4026-467b-a26d-82f1361fb2cd",
+    "e96bf523-24bf-45ce-ab7f-d1e798ef62d5"
+  ]
+}
