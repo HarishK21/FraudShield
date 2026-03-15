@@ -135,9 +135,9 @@ Optional FraudShield AI settings:
 
 ```env
 FRAUD_AI_ENABLED=true
-FRAUD_AI_BASE_URL=https://qyt7893blb71b5d3.us-east-2.aws.endpoints.huggingface.cloud/v1
+FRAUD_AI_BASE_URL=haha nice try find ur own
 FRAUD_AI_MODEL=openai/gpt-oss-120b
-FRAUD_AI_API_KEY=test
+FRAUD_AI_API_KEY=haha nice try find ur own
 ```
 
 ## ▶️ Run Locally
