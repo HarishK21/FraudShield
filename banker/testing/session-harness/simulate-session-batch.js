@@ -249,20 +249,13 @@ function buildSyntheticFeedbackPayload(sessionDetail) {
   const expectedFlagged = Boolean(sessionDetail.expectedFlagged);
   const isReviewCorrectionScenario = scenarioId === "flagged-review-corrections";
   const treatAsLegitReviewCase =
-    expectedFlagged && isReviewCorrectionScenario && ordinal % 12 === 4;
-  const injectRareMissedFraud = !expectedFlagged && ordinal % 23 === 0;
+    expectedFlagged && isReviewCorrectionScenario && ordinal % 12 === 10;
 
   let outcome = "legit";
   let analystDecision = "Safe";
   let caseStatus = "Resolved";
 
   if (expectedFlagged && !treatAsLegitReviewCase) {
-    outcome = "fraud";
-    analystDecision = "Escalated";
-    caseStatus = "Investigating";
-  }
-
-  if (injectRareMissedFraud) {
     outcome = "fraud";
     analystDecision = "Escalated";
     caseStatus = "Investigating";

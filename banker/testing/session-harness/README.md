@@ -39,6 +39,7 @@ node testing/session-harness/simulate-session-batch.js \
 - `--fraudMetricsUrl=http://localhost:3001/api/fraud/metrics`
 - `--fraudFeedbackUrl=http://localhost:3001/api/fraud/feedback`
 - `--autoLabel=true|false` (default `true`, writes synthetic analyst outcomes)
+  - Review-correction scenarios are deterministically split between legit/fraud outcomes to stress test precision/recall tradeoffs.
 
 ## Output
 

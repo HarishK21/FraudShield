@@ -331,9 +331,10 @@ function adjustScoreWithAiAdjudication(
     baseScore >= watchThreshold &&
     baseScore <= watchThreshold + 8 &&
     aiAssessment.verdict !== "High Risk" &&
-    aiConfidence >= 0.5
+    aiConfidence >= 0.5 &&
+    aiRisk <= 0.4
   ) {
-    adjustedScore = clampScore(adjustedScore - 6);
+    adjustedScore = clampScore(adjustedScore - 4);
   }
 
   // Borderline normals get a lift only when AI is strongly confident in high risk.

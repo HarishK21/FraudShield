@@ -215,7 +215,7 @@ function buildModelComparison(
     latencyMs: {
       rulesOnlyTotal: rulesOnlyLatencyMs,
       rulesPlusAiTotal: rulesPlusAiLatencyMs,
-      additionalAiCost: rulesPlusAiLatencyMs - rulesOnlyLatencyMs
+      additionalAiCost: Math.max(0, rulesPlusAiLatencyMs - rulesOnlyLatencyMs)
     }
   } satisfies ModelComparisonSnapshot;
 }
