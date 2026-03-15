@@ -61,6 +61,7 @@ const emptySnapshot: FraudDashboardSnapshot = {
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 const defaultAnalyst =
   (process.env.NEXT_PUBLIC_DEFAULT_ANALYST ?? "").trim() || "Unassigned";
+const DEFAULT_LIMIT = 50;
 
 function normalizeFilterValue(value: string | undefined) {
   if (!value) {
@@ -145,7 +146,9 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [loadingState, setLoadingState] = useState<LoadingState>("loading");
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [filters, setFiltersState] = useState<SessionFilterCriteria>({});
+  const [filters, setFiltersState] = useState<SessionFilterCriteria>({
+    limit: DEFAULT_LIMIT
+  });
   const [sessionDecisionOverrides, setSessionDecisionOverrides] = useState<
     Record<string, AnalystDecision>
   >({});
@@ -163,6 +166,19 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     filtersRef.current = filters;
   }, [filters]);
+
+  useEffect(() => {
+    setFiltersState((current) => {
+      if (typeof current.limit === "number" && current.limit > 0) {
+        return current;
+      }
+
+      return {
+        ...current,
+        limit: DEFAULT_LIMIT
+      };
+    });
+  }, []);
 
   const dashboardData = applyLocalState(
     snapshot,
@@ -278,7 +294,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFiltersState({});
+    setFiltersState({ limit: DEFAULT_LIMIT });
   }, []);
 
   const markSessionSafe = (sessionId: string) => {

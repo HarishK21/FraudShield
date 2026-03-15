@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { useFraudDashboard } from "@/components/dashboard/dashboard-data-provider";
 
+const DEFAULT_LIMIT = 50;
+
 function withCurrentOption(options: string[], currentValue?: string) {
   if (!currentValue || options.includes(currentValue)) {
     return options;
@@ -13,8 +15,9 @@ function withCurrentOption(options: string[], currentValue?: string) {
 
 export function SessionFilters() {
   const { clearFilters, filterOptions, filters, setFilters } = useFraudDashboard();
-  const selectedLimit = filters.limit && filters.limit > 0 ? filters.limit : 250;
-  const hasCustomLimit = selectedLimit !== 250;
+  const selectedLimit =
+    filters.limit && filters.limit > 0 ? filters.limit : DEFAULT_LIMIT;
+  const hasCustomLimit = selectedLimit !== DEFAULT_LIMIT;
   const activeFilterCount = [
     filters.userId,
     filters.scenarioId,
@@ -39,9 +42,7 @@ export function SessionFilters() {
           const parsed = Number.parseInt(event.target.value, 10);
           setFilters({
             limit:
-              Number.isFinite(parsed) && parsed > 0 && parsed !== 250
-                ? parsed
-                : undefined
+              Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_LIMIT
           });
         }}
         className="h-9 min-w-[160px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
