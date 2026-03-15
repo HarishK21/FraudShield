@@ -1,4 +1,4 @@
-# 🛡️ FraudShield + 🏦 NorthMaple Bank
+# 🛡️ FraudShield
 
 Real-time fraud detection for online banking, powered by behavioral telemetry.
 
@@ -6,7 +6,7 @@ FraudShield combines classic transaction checks with session-level behavior sign
 
 Built with `railtracks`.
 
-## Project Inspiration:
+## 💡 Project Inspiration:
 
 Traditional fraud checks are often transaction-only (amount limits, destination checks, velocity). That leaves a gap: account takeover and automated abuse can look "normal" transaction-wise but still behave abnormally at the session level.
 
@@ -45,7 +45,7 @@ Why it matters in generative AI:
 - Python / pip
 - Git / GitHub
 
-## Product Summary:
+## 🚀 Product Summary:
 
 FraudShield simulates a full fraud detection loop:
 1. A user performs banking actions in the `banker` app.
