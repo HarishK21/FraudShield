@@ -1,9 +1,9 @@
-# NorthMaple Bank + FraudShield
+# FraudShield
 
-NorthMaple Bank + FraudShield is a two-app fraud detection project built for real-time behavioral risk monitoring in online banking.
+FraudShield is a real-time fraud detection project for behavioral risk monitoring in online banking.
 
-- `banker` (port `3000`): customer-facing banking app that emits behavioral telemetry during transfer flows.
 - `fraudshield` (port `3001`): analyst dashboard that scores sessions, creates alerts/cases, and shows investigation context.
+- `banker` (port `3000`): synthetic banking client used to generate transfer sessions and behavioral telemetry.
 
 Built with `railtracks`.
 
@@ -50,9 +50,9 @@ The goal is to catch suspicious transfers in real time while still preserving a 
 
 ## Product Summary
 
-This project simulates a full fraud detection loop:
+FraudShield simulates a full fraud detection loop:
 
-1. A user performs banking actions in the NorthMaple app, including transfer review and submit.
+1. A user performs banking actions in the banking client app, including transfer review and submit.
 2. Behavioral telemetry is captured and sent to backend storage.
 3. FraudShield scores each session using a rules pipeline and optional AI co-assessment.
 4. Analysts get live session views, triggered alerts, and case queue actions.
