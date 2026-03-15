@@ -6,6 +6,8 @@ const { chromium } = require("playwright");
 const DEFAULT_BANK_URL = process.env.BANK_URL ?? "http://localhost:3000";
 const DEFAULT_FRAUD_SESSIONS_API =
   process.env.FRAUD_SESSIONS_API ?? "http://localhost:3001/api/fraud/sessions";
+const DEFAULT_FRAUD_METRICS_API =
+  process.env.FRAUD_METRICS_API ?? "http://localhost:3001/api/fraud/metrics";
 const DEFAULT_TEST_USER_COUNT = Number.parseInt(
   process.env.TEST_USER_COUNT ?? "50",
   10
@@ -117,6 +119,7 @@ function getConfig() {
     headless: asBoolean(args.headless, true),
     bankUrl: args.bankUrl ?? DEFAULT_BANK_URL,
     fraudSessionsApi: args.fraudUrl ?? DEFAULT_FRAUD_SESSIONS_API,
+    fraudMetricsApi: args.fraudMetricsUrl ?? DEFAULT_FRAUD_METRICS_API,
     testUserCount
   };
 }
@@ -124,6 +127,13 @@ function getConfig() {
 function buildUserId(index, userCount) {
   const slot = (index % userCount) + 1;
   return `test-user-${String(slot).padStart(3, "0")}`;
+}
+
+function buildTransferAmount(index) {
+  // Keep values comfortably below unusual-amount thresholds while varying naturally.
+  const dollars = 45 + (index % 14) * 27 + ((index * 11) % 23);
+  const cents = [0, 0.25, 0.5, 0.75][index % 4];
+  return (dollars + cents).toFixed(2);
 }
 
 async function ensureDir(dirPath) {
@@ -199,6 +209,20 @@ async function waitForRunSessions(fraudApi, runId, minCount) {
       message: `Did not observe ${minCount} sessions for run ${runId}.`
     }
   );
+}
+
+async function fetchFraudMetrics(baseUrl, filters = {}) {
+  const response = await fetch(buildFraudUrl(baseUrl, filters), { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch metrics from ${buildFraudUrl(baseUrl, filters)}.`);
+  }
+
+  const payload = await response.json();
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Fraud metrics API did not return a JSON object.");
+  }
+
+  return payload;
 }
 
 async function maybeAcceptConsent(page) {
@@ -319,6 +343,18 @@ async function doHesitationBursts(page) {
   }
 }
 
+async function doCorrectionBursts(page) {
+  const note = page.locator('textarea[data-telemetry-field="note"]');
+  await note.click();
+  await note.type("paymnt ref", { delay: 42 });
+  await page.keyboard.press("Backspace");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.press("Backspace");
+  await note.type("ment ref", { delay: 40 });
+  await page.waitForTimeout(500);
+}
+
 async function doRapidRepeatClicks(page) {
   const navTransfer = page.locator('[data-telemetry-id="nav-transfer"]').first();
   for (let index = 0; index < 4; index += 1) {
@@ -332,11 +368,12 @@ function getScenarioTemplates() {
     {
       scenarioId: "normal-steady-review",
       target: "unflagged",
+      geoMode: "normal",
       flow: async (page, item) => {
         await gotoTransfer(page, { waitBeforeNavMs: 2200 });
         await page.waitForTimeout(1_200);
         await submitTransfer(page, {
-          amount: "10",
+          amount: item.transferAmount,
           noteText: "routine internal transfer",
           preReviewWaitMs: 8_000,
           reviewWaitMs: 6_000
@@ -346,11 +383,12 @@ function getScenarioTemplates() {
     {
       scenarioId: "normal-careful-typing",
       target: "unflagged",
+      geoMode: "normal",
       flow: async (page, item) => {
         await gotoTransfer(page, { waitBeforeNavMs: 2200 });
         await page.waitForTimeout(1_400);
         await submitTransfer(page, {
-          amount: "10",
+          amount: item.transferAmount,
           noteText: "monthly transfer",
           preReviewWaitMs: 9_000,
           reviewWaitMs: 5_500
@@ -363,13 +401,14 @@ function getScenarioTemplates() {
     {
       scenarioId: "flagged-erratic-nav",
       target: "flagged",
+      geoMode: "unusual",
       flow: async (page, item) => {
         await gotoTransfer(page);
         await doRapidNavigation(page);
         await doErraticMouse(page);
         await doRapidRepeatClicks(page);
         await submitTransfer(page, {
-          amount: "10",
+          amount: item.transferAmount,
           noteText: "",
           preReviewWaitMs: 300,
           reviewWaitMs: 700
@@ -377,18 +416,19 @@ function getScenarioTemplates() {
       }
     },
     {
-      scenarioId: "flagged-drift-bursts",
+      scenarioId: "flagged-cognitive-drift",
       target: "flagged",
+      geoMode: "normal",
       flow: async (page, item) => {
-        await gotoTransfer(page);
+        await gotoTransfer(page, { waitBeforeNavMs: 1200 });
         await doHesitationBursts(page);
-        await doRapidNavigation(page);
-        await doErraticMouse(page, 38);
+        await doCorrectionBursts(page);
+        await doRapidRepeatClicks(page);
         await submitTransfer(page, {
-          amount: "10",
-          noteText: "",
-          preReviewWaitMs: 250,
-          reviewWaitMs: 500
+          amount: item.transferAmount,
+          noteText: "invoice confirmation",
+          preReviewWaitMs: 1_700,
+          reviewWaitMs: 1_600
         });
       }
     }
@@ -442,7 +482,8 @@ function buildRunPlan(config) {
     const sequence = useFlagged ? flaggedIndex : normalIndex;
     const userId = buildUserId(index, config.testUserCount);
     const normalGeoRegion = "Toronto, ON, CA";
-    const flaggedGeoRegion = "Miami, FL, US";
+    const unusualGeoRegion = "Miami, FL, US";
+    const geoMode = template.geoMode ?? (useFlagged ? "unusual" : "normal");
 
     return {
       name: `${target}-${String(sequence).padStart(3, "0")}`,
@@ -450,7 +491,8 @@ function buildRunPlan(config) {
       userId,
       agentId: `agent-${String(index + 1).padStart(3, "0")}`,
       scenarioId: template.scenarioId,
-      geoRegion: useFlagged ? flaggedGeoRegion : normalGeoRegion,
+      transferAmount: buildTransferAmount(index),
+      geoRegion: geoMode === "unusual" ? unusualGeoRegion : normalGeoRegion,
       flow: template.flow,
       captureArtifacts
     };
@@ -656,6 +698,7 @@ async function main() {
         captureMode: config.captureMode,
         bankUrl: config.bankUrl,
         fraudSessionsApi: config.fraudSessionsApi,
+        fraudMetricsApi: config.fraudMetricsApi,
         headless: config.headless
       },
       totalsBeforeRun: initialForRun.length,
@@ -670,6 +713,29 @@ async function main() {
       },
       sessions: sessionDetails
     };
+
+    try {
+      const metrics = await fetchFraudMetrics(config.fraudMetricsApi, {
+        testRunId: config.runId
+      });
+      report.monitoring = {
+        generatedAt: metrics.generatedAt ?? null,
+        labeledSessions: metrics.labeledSessions ?? null,
+        alertPrecision:
+          typeof metrics?.evaluation?.alertTier?.precision === "number"
+            ? Number((metrics.evaluation.alertTier.precision * 100).toFixed(2))
+            : null,
+        criticalRecall:
+          typeof metrics?.evaluation?.criticalTier?.recall === "number"
+            ? Number((metrics.evaluation.criticalTier.recall * 100).toFixed(2))
+            : null,
+        modelComparison: metrics.comparison ?? null
+      };
+    } catch (error) {
+      report.monitoring = {
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
 
     const reportPath = path.join(OUTPUT_DIR, "report.json");
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2), "utf8");

@@ -13,16 +13,15 @@ function withCurrentOption(options: string[], currentValue?: string) {
 
 export function SessionFilters() {
   const { clearFilters, filterOptions, filters, setFilters } = useFraudDashboard();
+  const selectedLimit = filters.limit && filters.limit > 0 ? filters.limit : 250;
+  const hasCustomLimit = selectedLimit !== 250;
   const activeFilterCount = [
     filters.userId,
-    filters.testRunId,
-    filters.agentId,
-    filters.scenarioId
+    filters.scenarioId,
+    hasCustomLimit ? String(selectedLimit) : undefined
   ].filter(Boolean).length;
 
-  const runOptions = withCurrentOption(filterOptions.testRunIds, filters.testRunId);
   const userOptions = withCurrentOption(filterOptions.userIds, filters.userId);
-  const agentOptions = withCurrentOption(filterOptions.agentIds, filters.agentId);
   const scenarioOptions = withCurrentOption(
     filterOptions.scenarioIds,
     filters.scenarioId
@@ -35,22 +34,27 @@ export function SessionFilters() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <select
-        value={filters.testRunId ?? ""}
-        onChange={(event) =>
+        value={String(selectedLimit)}
+        onChange={(event) => {
+          const parsed = Number.parseInt(event.target.value, 10);
           setFilters({
-            testRunId: event.target.value || undefined
-          })
-        }
-        className="h-9 min-w-[140px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+            limit:
+              Number.isFinite(parsed) && parsed > 0 && parsed !== 250
+                ? parsed
+                : undefined
+          });
+        }}
+        className="h-9 min-w-[160px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
       >
-        <option value="" style={optionStyle}>
-          All runs
+        <option value="50" style={optionStyle}>
+          Last 50 entries
         </option>
-        {runOptions.map((value) => (
-          <option key={value} value={value} style={optionStyle}>
-            {value}
-          </option>
-        ))}
+        <option value="100" style={optionStyle}>
+          Last 100 entries
+        </option>
+        <option value="250" style={optionStyle}>
+          Last 250 entries
+        </option>
       </select>
 
       <select
@@ -66,25 +70,6 @@ export function SessionFilters() {
           All users
         </option>
         {userOptions.map((value) => (
-          <option key={value} value={value} style={optionStyle}>
-            {value}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={filters.agentId ?? ""}
-        onChange={(event) =>
-          setFilters({
-            agentId: event.target.value || undefined
-          })
-        }
-        className="h-9 min-w-[140px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
-      >
-        <option value="" style={optionStyle}>
-          All agents
-        </option>
-        {agentOptions.map((value) => (
           <option key={value} value={value} style={optionStyle}>
             {value}
           </option>

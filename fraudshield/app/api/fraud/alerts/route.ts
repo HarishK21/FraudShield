@@ -15,9 +15,11 @@ import type { AlertRecord } from "@/lib/fraud/types";
 export async function GET(request: Request) {
   try {
     const filters = parseSessionFilterCriteria(request);
+    const sessionLimit = Math.min(Math.max(filters.limit ?? 250, 1), 1000);
+    const eventLimit = Math.min(Math.max(sessionLimit * 20, 1000), 10000);
     const { policy, sessions } = await loadScoredFraudSessions({
-      sessionLimit: 250,
-      eventLimit: 5000,
+      sessionLimit,
+      eventLimit,
       filters
     });
 
@@ -26,11 +28,18 @@ export async function GET(request: Request) {
     for (const session of sessions) {
       const score = session.summary.currentRiskScore;
       if (shouldCreateAlert(score, policy)) {
+        const topRiskFactor = session.summary.riskFactors[0]?.label;
+        const alternateRiskFactor = session.summary.riskFactors.find(
+          (factor) => factor.label !== "Erratic Mouse Movement"
+        )?.label;
         alerts.push({
           id: `alert-${session.sessionId}`,
           sessionId: session.sessionId,
           severity: getAlertSeverity(score, policy),
-          reason: session.summary.topFlags[0] ?? "Behavioral anomaly detected",
+          reason:
+            score < policy.thresholds.criticalAlert
+              ? alternateRiskFactor ?? topRiskFactor ?? "Behavioral anomaly detected"
+              : topRiskFactor ?? "Behavioral anomaly detected",
           timestamp: session.summary.lastEventTime,
           status: "Open",
         } satisfies AlertRecord);

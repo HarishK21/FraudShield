@@ -91,14 +91,20 @@ function applyFiltersToSnapshot(
     return snapshot;
   }
 
-  const sessions = snapshot.sessions.filter((session) =>
-    sessionMatchesFilters(session, filters)
+  const sessions = snapshot.sessions
+    .filter((session) => sessionMatchesFilters(session, filters))
+    .sort((left, right) =>
+      right.summary.lastEventTime.localeCompare(left.summary.lastEventTime)
+    );
+  const limitedSessions =
+    filters.limit && filters.limit > 0 ? sessions.slice(0, filters.limit) : sessions;
+  const allowedSessionIds = new Set(
+    limitedSessions.map((session) => session.sessionId)
   );
-  const allowedSessionIds = new Set(sessions.map((session) => session.sessionId));
 
   return {
     ...snapshot,
-    sessions,
+    sessions: limitedSessions,
     alerts: snapshot.alerts.filter((alert) => allowedSessionIds.has(alert.sessionId)),
     cases: snapshot.cases.filter((caseRecord) =>
       allowedSessionIds.has(caseRecord.sessionId)

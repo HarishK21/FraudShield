@@ -45,15 +45,26 @@ export function OverviewPage() {
 
   const metrics = getOverviewMetrics(sessions, alerts);
   const metricCards = getOverviewMetricCards(metrics);
-  const alertPrecision = monitoring
-    ? `${Math.round(monitoring.evaluation.alertTier.precision * 100)}%`
+  const modelComparison = monitoring?.comparison ?? null;
+  const showAiUpliftPanel = (modelComparison?.aiAssessedSessions ?? 0) > 0;
+  const f1DeltaLabel = modelComparison
+    ? `${modelComparison.uplift.f1Delta >= 0 ? "+" : ""}${(
+        modelComparison.uplift.f1Delta * 100
+      ).toFixed(1)} pts`
     : "--";
-  const criticalRecall = monitoring
-    ? `${Math.round(monitoring.evaluation.criticalTier.recall * 100)}%`
+  const precisionDeltaLabel = modelComparison
+    ? `${modelComparison.uplift.precisionDelta >= 0 ? "+" : ""}${(
+        modelComparison.uplift.precisionDelta * 100
+      ).toFixed(1)} pts`
     : "--";
-  const driftFlags = monitoring
-    ? monitoring.drift.filter((metric) => metric.flagged).length
-    : 0;
+  const falsePositiveDeltaLabel = modelComparison
+    ? `${modelComparison.uplift.falsePositiveRateDelta >= 0 ? "+" : ""}${(
+        modelComparison.uplift.falsePositiveRateDelta * 100
+      ).toFixed(1)} pts`
+    : "--";
+  const addedLatencyLabel = modelComparison
+    ? `${modelComparison.latencyMs.additionalAiCost} ms`
+    : "--";
 
   return (
     <div className="space-y-6">
@@ -90,29 +101,51 @@ export function OverviewPage() {
         <AlertsOverTimeChart data={metrics.alertsOverTime} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Model Monitoring</CardTitle>
-          <CardDescription>
-            Precision and recall are computed from labeled analyst outcomes. Drift
-            highlights sharp feature shifts between recent and baseline windows.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
-            <p className="text-sm text-slate-400">Alert precision</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-50">{alertPrecision}</p>
-          </div>
-          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
-            <p className="text-sm text-slate-400">Critical recall</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-50">{criticalRecall}</p>
-          </div>
-          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
-            <p className="text-sm text-slate-400">Drift flags</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-50">{driftFlags}</p>
-          </div>
-        </CardContent>
-      </Card>
+      {showAiUpliftPanel ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Uplift Validation</CardTitle>
+            <CardDescription>
+              Side-by-side comparison of alert-tier classification quality for rules-only
+              scoring versus rules plus AI co-assessment on the same filtered session set.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+              <p className="text-sm text-slate-400">Evaluated labels</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-50">
+                {modelComparison?.evaluatedLabeledSessions ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+              <p className="text-sm text-slate-400">F1 uplift</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-50">{f1DeltaLabel}</p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+              <p className="text-sm text-slate-400">Precision uplift</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-50">
+                {precisionDeltaLabel}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+              <p className="text-sm text-slate-400">False positive delta</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-50">
+                {falsePositiveDeltaLabel}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 md:col-span-2 xl:col-span-2">
+              <p className="text-sm text-slate-400">AI-assessed sessions</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-50">
+                {modelComparison?.aiAssessedSessions ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 md:col-span-2 xl:col-span-2">
+              <p className="text-sm text-slate-400">Added AI latency</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-50">{addedLatencyLabel}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_380px]">
         <Card>

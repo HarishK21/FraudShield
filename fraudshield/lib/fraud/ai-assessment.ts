@@ -342,14 +342,18 @@ export async function assessFraudRiskWithAi(
     return null;
   }
 
-  if (!config.apiKey || config.apiKey === "test") {
-    if (!didWarnMissingApiKey && isDevMode()) {
-      didWarnMissingApiKey = true;
-      console.warn(
-        "[FraudShield AI] FRAUD_AI_ENABLED is true but FRAUD_AI_API_KEY/OPENAI_API_KEY is not configured."
-      );
-    }
+  if (!config.apiKey) {
     return null;
+  }
+
+  const hasExplicitApiKey = Boolean(
+    (process.env.FRAUD_AI_API_KEY ?? process.env.OPENAI_API_KEY ?? "").trim()
+  );
+  if (!hasExplicitApiKey && !didWarnMissingApiKey && isDevMode()) {
+    didWarnMissingApiKey = true;
+    console.warn(
+      "[FraudShield AI] No explicit API key found. Using placeholder 'test' (expected for open hackathon endpoints)."
+    );
   }
 
   const cacheKey = buildCacheKey(

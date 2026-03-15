@@ -332,6 +332,7 @@ export interface SessionFilterCriteria {
   testRunId?: string;
   agentId?: string;
   scenarioId?: string;
+  limit?: number;
 }
 
 export interface FraudDashboardSnapshot {

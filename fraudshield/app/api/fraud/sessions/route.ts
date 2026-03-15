@@ -11,9 +11,11 @@ import { parseSessionFilterCriteria } from "@/lib/fraud/filter-query";
 export async function GET(request: Request) {
   try {
     const filters = parseSessionFilterCriteria(request);
+    const sessionLimit = Math.min(Math.max(filters.limit ?? 250, 1), 1000);
+    const eventLimit = Math.min(Math.max(sessionLimit * 20, 1000), 10000);
     const { sessions } = await loadScoredFraudSessions({
-      sessionLimit: 250,
-      eventLimit: 5000,
+      sessionLimit,
+      eventLimit,
       filters
     });
     return NextResponse.json(sessions);

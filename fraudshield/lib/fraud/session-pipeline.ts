@@ -827,7 +827,8 @@ export async function loadScoredFraudSessions(
 }
 
 export function shouldCreateAlert(score: number, policy: FraudRiskPolicy) {
-  return score >= policy.thresholds.alert;
+  // Keep a low-severity review lane so analysts can monitor weak but non-zero risk signals.
+  return score >= 15;
 }
 
 export function getAlertSeverity(score: number, policy: FraudRiskPolicy): AlertSeverity {

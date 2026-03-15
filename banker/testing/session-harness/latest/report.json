@@ -1,30 +1,31 @@
 {
-  "generatedAt": "2026-03-15T01:54:45.226Z",
-  "startedAt": "2026-03-15T01:54:07.571Z",
-  "runId": "20260314-215407",
-  "phase": "smoke",
+  "generatedAt": "2026-03-15T03:13:49.812Z",
+  "startedAt": "2026-03-15T03:11:43.472Z",
+  "runId": "run-50agents-ai-final",
+  "phase": "scale50",
   "config": {
-    "total": 4,
-    "concurrency": 2,
-    "flaggedRatio": 0.5,
+    "total": 50,
+    "concurrency": 10,
+    "flaggedRatio": 0.4,
     "captureMode": "sample",
     "bankUrl": "http://localhost:3000",
     "fraudSessionsApi": "http://localhost:3001/api/fraud/sessions",
+    "fraudMetricsApi": "http://localhost:3001/api/fraud/metrics",
     "headless": true
   },
   "totalsBeforeRun": 0,
-  "totalsAfterRun": 4,
+  "totalsAfterRun": 50,
   "execution": {
-    "planned": 4,
-    "completed": 4,
+    "planned": 50,
+    "completed": 50,
     "failed": 0
   },
   "assertions": {
-    "matchedClassifications": 4,
+    "matchedClassifications": 50,
     "mismatchedClassifications": 0,
     "missingClassifications": 0,
-    "observedFlaggedCount": 2,
-    "observedUnflaggedCount": 2
+    "observedFlaggedCount": 20,
+    "observedUnflaggedCount": 30
   },
   "sessions": [
     {
@@ -33,16 +34,17 @@
       "userId": "test-user-001",
       "agentId": "agent-001",
       "scenarioId": "normal-steady-review",
+      "transferAmount": "45.00",
       "geoRegion": "Toronto, ON, CA",
       "captureArtifacts": true,
       "status": "completed",
-      "durationMs": 21759,
+      "durationMs": 23990,
       "artifacts": {
         "screenshotPath": "testing/session-harness/latest/unflagged-001-activity.png",
         "videoPath": "testing/session-harness/latest/unflagged-001.webm"
       },
-      "sessionId": "7aebfb76-26c6-4065-a1db-368219521d3e",
-      "score": 19,
+      "sessionId": "465793c9-b7de-47c8-81f6-1c2814563609",
+      "score": 21,
       "statusLabel": "Normal",
       "topFlags": [
         "Destination Novelty",
@@ -64,16 +66,17 @@
       "userId": "test-user-002",
       "agentId": "agent-002",
       "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "83.25",
       "geoRegion": "Miami, FL, US",
       "captureArtifacts": true,
       "status": "completed",
-      "durationMs": 10137,
+      "durationMs": 14179,
       "artifacts": {
         "screenshotPath": "testing/session-harness/latest/flagged-001-activity.png",
         "videoPath": "testing/session-harness/latest/flagged-001.webm"
       },
-      "sessionId": "84025670-7a1e-4b69-a74e-bcd14901647f",
-      "score": 95,
+      "sessionId": "c5fdf6c3-7b4c-4e73-8530-cbd98dff3db7",
+      "score": 96,
       "statusLabel": "High Risk",
       "topFlags": [
         "Erratic Mouse Movement",
@@ -95,16 +98,17 @@
       "userId": "test-user-003",
       "agentId": "agent-003",
       "scenarioId": "normal-careful-typing",
+      "transferAmount": "121.50",
       "geoRegion": "Toronto, ON, CA",
       "captureArtifacts": true,
       "status": "completed",
-      "durationMs": 21846,
+      "durationMs": 25105,
       "artifacts": {
         "screenshotPath": "testing/session-harness/latest/unflagged-002-activity.png",
         "videoPath": "testing/session-harness/latest/unflagged-002.webm"
       },
-      "sessionId": "bb4f0d0e-3cdb-4400-a3de-c9b23a5d1c78",
-      "score": 19,
+      "sessionId": "168c24eb-9971-4a7f-93c0-33b278741b19",
+      "score": 22,
       "statusLabel": "Normal",
       "topFlags": [
         "Destination Novelty",
@@ -125,31 +129,1553 @@
       "target": "flagged",
       "userId": "test-user-004",
       "agentId": "agent-004",
-      "scenarioId": "flagged-drift-bursts",
-      "geoRegion": "Miami, FL, US",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "136.75",
+      "geoRegion": "Toronto, ON, CA",
       "captureArtifacts": true,
       "status": "completed",
-      "durationMs": 15845,
+      "durationMs": 20016,
       "artifacts": {
         "screenshotPath": "testing/session-harness/latest/flagged-002-activity.png",
         "videoPath": "testing/session-harness/latest/flagged-002.webm"
       },
-      "sessionId": "6d3e161f-2c84-44ed-ae59-53fb10ec3ede",
-      "score": 95,
+      "sessionId": "47d53a32-f23c-4aa7-8895-3e16a0d2214c",
+      "score": 86,
       "statusLabel": "High Risk",
       "topFlags": [
-        "Erratic Mouse Movement",
-        "Rapid Navigation",
-        "Suspiciously Fast Submit"
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
       ],
       "reasonCodes": [
-        "erratic-mouse",
-        "rapid-navigation",
-        "short-review-submit-delay"
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
       ],
       "observedFlagged": true,
       "expectedFlagged": true,
       "classification": "match"
+    },
+    {
+      "name": "unflagged-003",
+      "target": "unflagged",
+      "userId": "test-user-005",
+      "agentId": "agent-005",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "174.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 23686,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "2a50153c-71f6-43e2-96ae-0a90141860a5",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-003",
+      "target": "flagged",
+      "userId": "test-user-006",
+      "agentId": "agent-006",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "189.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 13549,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "3b824564-3129-486b-a0a7-df6898c3895f",
+      "score": 96,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-004",
+      "target": "unflagged",
+      "userId": "test-user-007",
+      "agentId": "agent-007",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "227.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 24080,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "42c16ac3-0013-4d0c-ae5b-3cf1c13aee24",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-004",
+      "target": "flagged",
+      "userId": "test-user-008",
+      "agentId": "agent-008",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "242.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 19809,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "2d8a273f-8430-49c0-ad5c-7e981e28e546",
+      "score": 86,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-005",
+      "target": "unflagged",
+      "userId": "test-user-009",
+      "agentId": "agent-009",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "280.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 23450,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "4db972a9-104d-4cb3-b4e4-5f9264cc5895",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-005",
+      "target": "flagged",
+      "userId": "test-user-010",
+      "agentId": "agent-010",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "295.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 13548,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "9750938c-3736-4eca-9da3-bb5c3890103a",
+      "score": 96,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-006",
+      "target": "unflagged",
+      "userId": "test-user-011",
+      "agentId": "agent-011",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "333.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22143,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "dc146455-b5e1-4637-a67c-9e04592c0746",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-006",
+      "target": "flagged",
+      "userId": "test-user-012",
+      "agentId": "agent-012",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "348.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 18174,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "78d6f4cb-15f0-4479-9455-5e42a0810ca4",
+      "score": 87,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-007",
+      "target": "unflagged",
+      "userId": "test-user-013",
+      "agentId": "agent-013",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "386.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21970,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "0c59c990-7e7a-411c-ba42-5113f540bfb0",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-007",
+      "target": "flagged",
+      "userId": "test-user-014",
+      "agentId": "agent-014",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "401.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 11680,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "a4185d60-d7ac-4def-8f0d-3a759b2ecfc7",
+      "score": 97,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-008",
+      "target": "unflagged",
+      "userId": "test-user-015",
+      "agentId": "agent-015",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "61.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22120,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "c353462f-9170-4c3d-b099-34097f32448a",
+      "score": 21,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-008",
+      "target": "flagged",
+      "userId": "test-user-016",
+      "agentId": "agent-016",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "76.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 17868,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "c52b2ddc-528e-4947-bbf8-964e5cd640df",
+      "score": 85,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-009",
+      "target": "unflagged",
+      "userId": "test-user-017",
+      "agentId": "agent-017",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "114.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22087,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "6210ae55-feb7-4380-bb2f-ee3bd32cd054",
+      "score": 22,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-009",
+      "target": "flagged",
+      "userId": "test-user-018",
+      "agentId": "agent-018",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "129.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 11891,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "53d4a647-458a-4fc9-9e44-db5f978c1940",
+      "score": 96,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-010",
+      "target": "unflagged",
+      "userId": "test-user-019",
+      "agentId": "agent-019",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "167.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22174,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "4aaef119-fa4d-4cce-8f37-d6d53b94936f",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-010",
+      "target": "flagged",
+      "userId": "test-user-020",
+      "agentId": "agent-020",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "182.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 18244,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "60139a48-bdea-4d63-91f9-b789e5dcf107",
+      "score": 86,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-011",
+      "target": "unflagged",
+      "userId": "test-user-021",
+      "agentId": "agent-021",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "220.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21233,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "f6bdc604-424f-42e1-b26a-819d807d23db",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-011",
+      "target": "flagged",
+      "userId": "test-user-022",
+      "agentId": "agent-022",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "235.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 10673,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "366d538c-8494-40eb-b3ea-2438c5409beb",
+      "score": 97,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-012",
+      "target": "unflagged",
+      "userId": "test-user-023",
+      "agentId": "agent-023",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "273.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21889,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "2c8c00a3-ca67-44c9-b96c-1031f319a420",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-012",
+      "target": "flagged",
+      "userId": "test-user-024",
+      "agentId": "agent-024",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "288.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 17779,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "417feee6-fc14-4b8d-a110-7f41310fb353",
+      "score": 86,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-013",
+      "target": "unflagged",
+      "userId": "test-user-025",
+      "agentId": "agent-025",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "326.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21770,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "e7264223-14c6-4fec-b45d-0d419d1ea38b",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-013",
+      "target": "flagged",
+      "userId": "test-user-026",
+      "agentId": "agent-026",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "364.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 11758,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "e139f4b4-2e2f-4c4a-9b76-d15777b6e6d8",
+      "score": 97,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-014",
+      "target": "unflagged",
+      "userId": "test-user-027",
+      "agentId": "agent-027",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "379.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22311,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "67889ab1-0343-4d30-b33d-180861ccb054",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-014",
+      "target": "flagged",
+      "userId": "test-user-028",
+      "agentId": "agent-028",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "417.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 17770,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "4413317d-ac5d-4b06-9557-134035958798",
+      "score": 87,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-015",
+      "target": "unflagged",
+      "userId": "test-user-029",
+      "agentId": "agent-029",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "54.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21712,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "138f4247-1ddd-4545-a1a0-2872f1f6c6d8",
+      "score": 21,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-015",
+      "target": "flagged",
+      "userId": "test-user-030",
+      "agentId": "agent-030",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "92.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 11063,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "6dbabfd4-437f-42ca-9d3a-c7ea2a050454",
+      "score": 96,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-016",
+      "target": "unflagged",
+      "userId": "test-user-031",
+      "agentId": "agent-031",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "107.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21773,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "0f143a7c-1a34-444b-b8f9-e4f734f71d20",
+      "score": 22,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-016",
+      "target": "flagged",
+      "userId": "test-user-032",
+      "agentId": "agent-032",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "145.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 17393,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "bec2c9d1-dc74-41e4-8750-2be00ab9edc7",
+      "score": 86,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-017",
+      "target": "unflagged",
+      "userId": "test-user-033",
+      "agentId": "agent-033",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "160.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21441,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "dd57f0a9-b75a-4766-b7ba-9116ec0653af",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-017",
+      "target": "flagged",
+      "userId": "test-user-034",
+      "agentId": "agent-034",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "198.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 11076,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "d0a28ab2-16f6-4832-a2c8-d783c6039b9e",
+      "score": 96,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-018",
+      "target": "unflagged",
+      "userId": "test-user-035",
+      "agentId": "agent-035",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "213.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22062,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "6c5535a3-423a-413f-ac96-4674667459d8",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-018",
+      "target": "flagged",
+      "userId": "test-user-036",
+      "agentId": "agent-036",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "251.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 17699,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "cc216ab3-e341-476d-adf6-6f21bebabaf2",
+      "score": 86,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-019",
+      "target": "unflagged",
+      "userId": "test-user-037",
+      "agentId": "agent-037",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "266.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21391,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "e4956f3b-40b7-40f3-9639-de4b79089485",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-019",
+      "target": "flagged",
+      "userId": "test-user-038",
+      "agentId": "agent-038",
+      "scenarioId": "flagged-erratic-nav",
+      "transferAmount": "304.25",
+      "geoRegion": "Miami, FL, US",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 10942,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "e70299cf-2b5c-4e29-b87c-42c5aff09875",
+      "score": 97,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Erratic Mouse Movement",
+        "Rapid Navigation",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "erratic-mouse",
+        "rapid-navigation",
+        "behavior-drift"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-020",
+      "target": "unflagged",
+      "userId": "test-user-039",
+      "agentId": "agent-039",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "319.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22314,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "e3d9b61c-620c-4b19-9158-952acf07d273",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "flagged-020",
+      "target": "flagged",
+      "userId": "test-user-040",
+      "agentId": "agent-040",
+      "scenarioId": "flagged-cognitive-drift",
+      "transferAmount": "357.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 17684,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "8d47da89-86bb-4ceb-9676-52a56be95a60",
+      "score": 87,
+      "statusLabel": "High Risk",
+      "topFlags": [
+        "Behavior Drift",
+        "Suspiciously Fast Submit",
+        "Destination Novelty"
+      ],
+      "reasonCodes": [
+        "behavior-drift",
+        "short-review-submit-delay",
+        "destination-novelty"
+      ],
+      "observedFlagged": true,
+      "expectedFlagged": true,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-021",
+      "target": "unflagged",
+      "userId": "test-user-041",
+      "agentId": "agent-041",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "372.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21670,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "482eefbc-cea8-4d1a-96e5-b1ddf37e6506",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-022",
+      "target": "unflagged",
+      "userId": "test-user-042",
+      "agentId": "agent-042",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "410.25",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 22130,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "fb8bd2c2-a2d5-4c28-a810-854d4cf9c0c4",
+      "score": 24,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-023",
+      "target": "unflagged",
+      "userId": "test-user-043",
+      "agentId": "agent-043",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "47.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21233,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "0c2a38ea-a0d4-49ed-afb3-306884396cfa",
+      "score": 21,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-024",
+      "target": "unflagged",
+      "userId": "test-user-044",
+      "agentId": "agent-044",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "85.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21778,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "29740a48-be1c-4cb9-91a4-4cd014905e53",
+      "score": 22,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-025",
+      "target": "unflagged",
+      "userId": "test-user-045",
+      "agentId": "agent-045",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "100.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21330,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "bea6f8eb-4909-4a67-8336-12821924d200",
+      "score": 22,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-026",
+      "target": "unflagged",
+      "userId": "test-user-046",
+      "agentId": "agent-046",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "138.25",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21807,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "19cea160-d378-4680-a63f-5473d24d0914",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-027",
+      "target": "unflagged",
+      "userId": "test-user-047",
+      "agentId": "agent-047",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "153.50",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21373,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "c59e93d7-4ff3-444a-934b-ff2def62e172",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-028",
+      "target": "unflagged",
+      "userId": "test-user-048",
+      "agentId": "agent-048",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "191.75",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21932,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "b9a9c2fc-20e4-4355-9064-0a14e36fab80",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-029",
+      "target": "unflagged",
+      "userId": "test-user-049",
+      "agentId": "agent-049",
+      "scenarioId": "normal-steady-review",
+      "transferAmount": "229.00",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21146,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "47b95062-6393-49cb-abec-68eeed10bad8",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
+    },
+    {
+      "name": "unflagged-030",
+      "target": "unflagged",
+      "userId": "test-user-050",
+      "agentId": "agent-050",
+      "scenarioId": "normal-careful-typing",
+      "transferAmount": "244.25",
+      "geoRegion": "Toronto, ON, CA",
+      "captureArtifacts": false,
+      "status": "completed",
+      "durationMs": 21633,
+      "artifacts": {
+        "screenshotPath": null,
+        "videoPath": null
+      },
+      "sessionId": "98b60159-315c-4e3e-a25a-89ce6c515857",
+      "score": 23,
+      "statusLabel": "Normal",
+      "topFlags": [
+        "Destination Novelty",
+        "Unusual Amount",
+        "Behavior Drift"
+      ],
+      "reasonCodes": [
+        "destination-novelty",
+        "unusual-amount",
+        "behavior-drift"
+      ],
+      "observedFlagged": false,
+      "expectedFlagged": false,
+      "classification": "match"
     }
-  ]
+  ],
+  "monitoring": {
+    "generatedAt": "2026-03-15T03:13:59.270Z",
+    "labeledSessions": 0,
+    "alertPrecision": 0,
+    "criticalRecall": 0,
+    "modelComparison": {
+      "threshold": 30,
+      "evaluatedLabeledSessions": 0,
+      "aiAssessedSessions": 0,
+      "aiInfluencedSessions": 0,
+      "rulesOnly": {
+        "total": 0,
+        "predictedPositive": 0,
+        "truePositive": 0,
+        "falsePositive": 0,
+        "trueNegative": 0,
+        "falseNegative": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": 0,
+        "falsePositiveRate": 0,
+        "falseNegativeRate": 0
+      },
+      "rulesPlusAi": {
+        "total": 0,
+        "predictedPositive": 0,
+        "truePositive": 0,
+        "falsePositive": 0,
+        "trueNegative": 0,
+        "falseNegative": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": 0,
+        "falsePositiveRate": 0,
+        "falseNegativeRate": 0
+      },
+      "uplift": {
+        "precisionDelta": 0,
+        "recallDelta": 0,
+        "f1Delta": 0,
+        "falsePositiveRateDelta": 0
+      },
+      "latencyMs": {
+        "rulesOnlyTotal": 16,
+        "rulesPlusAiTotal": 9436,
+        "additionalAiCost": 9420
+      }
+    }
+  }
 }

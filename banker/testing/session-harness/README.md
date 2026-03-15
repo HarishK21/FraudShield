@@ -1,6 +1,8 @@
 # Session Harness
 
 Runs authenticated bank UI sessions with deterministic users, run/agent/scenario tags, and writes one canonical artifact batch in-repo.
+Transfer amounts are varied per session (not fixed at `$10`) while staying below unusual-amount thresholds.
+Flagged scenarios are intentionally mixed so alert reasons include more than erratic mouse patterns.
 
 ## Run
 
@@ -31,6 +33,7 @@ node testing/session-harness/simulate-session-batch.js \
 - `--flaggedRatio=0.4` (portion of sessions that target flagged behavior)
 - `--bankUrl=http://localhost:3000`
 - `--fraudUrl=http://localhost:3001/api/fraud/sessions`
+- `--fraudMetricsUrl=http://localhost:3001/api/fraud/metrics`
 
 ## Output
 
@@ -39,3 +42,6 @@ Single canonical output folder:
 - `testing/session-harness/latest/report.json`
 - `testing/session-harness/latest/*.webm`
 - `testing/session-harness/latest/*-activity.png`
+
+`report.json` also includes `monitoring.modelComparison` when the FraudShield metrics
+API is reachable, with rules-only vs rules+AI precision/recall/F1 deltas and added latency.

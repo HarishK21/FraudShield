@@ -71,6 +71,14 @@ function normalizeFilterValue(value: string | undefined) {
   return normalized.length ? normalized : undefined;
 }
 
+function normalizeLimitValue(value: number | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+
+  return Math.min(1000, Math.floor(value));
+}
+
 function uniqueSorted(values: Array<string | undefined>) {
   return [...new Set(values.filter(Boolean) as string[])].sort((left, right) =>
     left.localeCompare(right)
@@ -242,6 +250,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       const hasRunId = Object.prototype.hasOwnProperty.call(next, "testRunId");
       const hasAgentId = Object.prototype.hasOwnProperty.call(next, "agentId");
       const hasScenarioId = Object.prototype.hasOwnProperty.call(next, "scenarioId");
+      const hasLimit = Object.prototype.hasOwnProperty.call(next, "limit");
       const candidate: SessionFilterCriteria = {
         userId: hasUserId ? normalizeFilterValue(next.userId) : current.userId,
         testRunId: hasRunId
@@ -250,14 +259,16 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         agentId: hasAgentId ? normalizeFilterValue(next.agentId) : current.agentId,
         scenarioId: hasScenarioId
           ? normalizeFilterValue(next.scenarioId)
-          : current.scenarioId
+          : current.scenarioId,
+        limit: hasLimit ? normalizeLimitValue(next.limit) : current.limit
       };
 
       if (
         candidate.userId === current.userId &&
         candidate.testRunId === current.testRunId &&
         candidate.agentId === current.agentId &&
-        candidate.scenarioId === current.scenarioId
+        candidate.scenarioId === current.scenarioId &&
+        candidate.limit === current.limit
       ) {
         return current;
       }
