@@ -152,6 +152,19 @@ export function SessionDetailPage({ sessionId }: { sessionId: string }) {
                   </span>
                 </p>
               </div>
+              {session.summary.aiAssessment ? (
+                <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 md:col-span-2 xl:col-span-3">
+                  <p className="text-sm text-slate-400">AI co-assessment</p>
+                  <p className="mt-2 text-lg font-semibold text-slate-50">
+                    {session.summary.aiAssessment.verdict} (
+                    {Math.round(session.summary.aiAssessment.riskProbability * 100)}% risk,{" "}
+                    {Math.round(session.summary.aiAssessment.confidence * 100)}% confidence)
+                  </p>
+                  <p className="mt-2 text-sm text-slate-300">
+                    {session.summary.aiAssessment.rationale}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -161,7 +174,7 @@ export function SessionDetailPage({ sessionId }: { sessionId: string }) {
                   {session.accountHolder}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  {session.accountId} • {session.geoRegion}
+                  {session.accountId} | {session.geoRegion}
                 </p>
               </div>
               <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">

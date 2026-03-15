@@ -42,7 +42,8 @@ export type RiskFactorKey =
   | "destination-novelty"
   | "amount-deviation"
   | "velocity-spike"
-  | "prior-fraud-rate";
+  | "prior-fraud-rate"
+  | "ai-model-consensus";
 
 export interface TelemetryEvent {
   id: string;
@@ -86,6 +87,7 @@ export interface SessionSummaryInput {
   submitDelayMs: number;
   transferAmount: number;
   unusualLocationFlag?: boolean;
+  aiRiskScore?: number;
   currentPage: string;
   lastEventTime: string;
   submitted: boolean;
@@ -169,6 +171,18 @@ export interface SessionSummary extends SessionSummaryInput {
   modelVersion: string;
   behaviorDrift: BehaviorDriftResult;
   historicalFeatures: HistoricalRiskFeatures;
+  aiAssessment?: AiFraudAssessment;
+}
+
+export interface AiFraudAssessment {
+  provider: "huggingface-openai-compatible";
+  model: string;
+  riskProbability: number;
+  confidence: number;
+  verdict: "Normal" | "Watch" | "High Risk";
+  rationale: string;
+  reasonTags: string[];
+  generatedAt: string;
 }
 
 export interface FraudSession {
@@ -243,6 +257,41 @@ export interface FraudMonitoringSnapshot {
     criticalTier: TierEvaluationMetric;
   };
   drift: FeatureDriftMetric[];
+  comparison?: ModelComparisonSnapshot;
+}
+
+export interface BinaryClassificationMetrics {
+  total: number;
+  predictedPositive: number;
+  truePositive: number;
+  falsePositive: number;
+  trueNegative: number;
+  falseNegative: number;
+  precision: number;
+  recall: number;
+  f1: number;
+  falsePositiveRate: number;
+  falseNegativeRate: number;
+}
+
+export interface ModelComparisonSnapshot {
+  threshold: number;
+  evaluatedLabeledSessions: number;
+  aiAssessedSessions: number;
+  aiInfluencedSessions: number;
+  rulesOnly: BinaryClassificationMetrics;
+  rulesPlusAi: BinaryClassificationMetrics;
+  uplift: {
+    precisionDelta: number;
+    recallDelta: number;
+    f1Delta: number;
+    falsePositiveRateDelta: number;
+  };
+  latencyMs: {
+    rulesOnlyTotal: number;
+    rulesPlusAiTotal: number;
+    additionalAiCost: number;
+  };
 }
 
 export interface OverviewMetricCard {

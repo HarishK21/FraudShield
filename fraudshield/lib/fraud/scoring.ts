@@ -118,6 +118,13 @@ const CONTRIBUTION_GROUPS: ContributionGroup[] = [
     description:
       "Recent confirmed fraud ratio for this customer increases prior risk.",
     features: ["priorConfirmedFraudRate30d"]
+  },
+  {
+    key: "ai-model-consensus",
+    label: "AI Model Consensus",
+    description:
+      "A secondary language model independently identified the session as suspicious.",
+    features: ["aiRiskScore"]
   }
 ];
 
@@ -270,6 +277,7 @@ function buildFeatureVector(
       0,
       1
     ),
+    aiRiskScore: clamp(summary.aiRiskScore ?? 0, 0, 1),
     userTransferCount24h: clamp(historicalFeatures.userTransferCount24h / 8, 0, 4),
     accountTransferCount24h: clamp(
       historicalFeatures.accountTransferCount24h / 8,

@@ -12,7 +12,7 @@ const DEFAULT_BEHAVIOR_BASELINE: BehaviorBaseline = {
 
 export const DEFAULT_FRAUD_POLICY: FraudRiskPolicy = {
   model: {
-    version: "2026.03.0",
+    version: "2026.03.1",
     intercept: -2.35,
     coefficients: {
       unusualAmountFlag: 1.35,
@@ -31,6 +31,7 @@ export const DEFAULT_FRAUD_POLICY: FraudRiskPolicy = {
       amountZScoreAbs: 0.28,
       userTransferVelocity15m: 0.31,
       priorConfirmedFraudRate30d: 1.12,
+      aiRiskScore: 0.67,
       logTransferAmount: 0.19,
       focusChangeCount: 0.05,
       clickPace: 0.04,

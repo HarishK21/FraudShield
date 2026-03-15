@@ -1,5 +1,11 @@
 import { getDb } from "@/lib/mongodb";
 import {
+  assessFraudRiskWithAi,
+  getAiAssessmentBudget,
+  getAiAssessmentConcurrency,
+  isAiFraudAssessmentEnabled
+} from "@/lib/fraud/ai-assessment";
+import {
   DEFAULT_FRAUD_POLICY,
   getPolicyOverrideFromEnv,
   mergeFraudPolicy
@@ -59,6 +65,7 @@ interface LoadScoredFraudSessionsOptions {
   sessionLimit?: number;
   eventLimit?: number;
   filters?: SessionFilterCriteria;
+  aiMode?: "auto" | "enabled" | "disabled";
 }
 
 type HistoryPoint = {
@@ -225,6 +232,55 @@ function computeStdDev(values: number[]) {
     values.reduce((sum, current) => sum + (current - mean) ** 2, 0) /
     values.length;
   return Math.sqrt(variance);
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>
+) {
+  if (!items.length) {
+    return [] as R[];
+  }
+
+  const limit = Math.max(1, Math.floor(concurrency));
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  const runWorker = async () => {
+    while (true) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      if (currentIndex >= items.length) {
+        return;
+      }
+
+      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+    }
+  };
+
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+
+  return results;
+}
+
+function shouldRequestAiAssessment(
+  summary: SessionSummaryInput,
+  baseRiskScore: number,
+  policy: FraudRiskPolicy
+) {
+  const nearDecisionBoundary = baseRiskScore >= Math.max(12, policy.thresholds.watch - 12);
+
+  return (
+    nearDecisionBoundary ||
+    summary.unusualLocationFlag ||
+    summary.erraticMouseFlag ||
+    summary.rapidNavFlag ||
+    summary.hesitationCount >= 4 ||
+    summary.rapidRepeatedClicks >= 3
+  );
 }
 
 function mapTelemetrySummary(
@@ -505,6 +561,7 @@ export async function loadScoredFraudSessions(
   const sessionLimit = options?.sessionLimit ?? 250;
   const eventLimit = options?.eventLimit ?? 5000;
   const filters = options?.filters;
+  const aiMode = options?.aiMode ?? "auto";
   const db = await getDb();
   const sessionQuery: Record<string, unknown> = {};
 
@@ -558,7 +615,23 @@ export async function loadScoredFraudSessions(
     rawSessions.map((doc) => asString(doc.userId))
   );
 
-  const sessions: FraudSession[] = rawSessions.map((doc) => {
+  type SessionDraft = {
+    sessionId: string;
+    userId: string;
+    testRunId?: string;
+    agentId?: string;
+    scenarioId?: string;
+    accountId: string;
+    accountHolder: string;
+    deviceLabel: string;
+    geoRegion: string;
+    analystDecision: AnalystDecision;
+    events: FraudSession["events"];
+    summaryInput: SessionSummaryInput;
+    historicalFeatures: HistoricalRiskFeatures | undefined;
+  };
+
+  const sessionDrafts: SessionDraft[] = rawSessions.map((doc) => {
     const sessionId = asString(doc.sessionId, "unknown-session");
     const metadata = asRecord(doc.metadata);
     const userId = asString(doc.userId, "unknown-user");
@@ -569,12 +642,7 @@ export async function loadScoredFraudSessions(
     const sessionEventsRaw = rawEventsBySession.get(sessionId) ?? [];
     const derivedMetrics = getDerivedMetricsForSession(sessionEventsRaw);
     const summaryInput = mapTelemetrySummary(doc, derivedMetrics);
-    const scored = scoreSession(summaryInput, {
-      policy,
-      historicalFeatures: historicalBySession.get(sessionId)
-    });
     const feedback = feedbackBySession.get(sessionId);
-
     const events = sessionEventsRaw
       .map((eventDoc, index) => {
         const eventMetadata = asRecord(eventDoc.metadata);
@@ -635,9 +703,118 @@ export async function loadScoredFraudSessions(
       geoRegion: asString(doc.geoRegion ?? metadata.geoRegion, "Unknown region"),
       analystDecision: feedback?.analystDecision ?? "Pending",
       events,
+      summaryInput,
+      historicalFeatures: historicalBySession.get(sessionId)
+    };
+  });
+
+  const baseScoredBySession = new Map<string, ReturnType<typeof scoreSession>>();
+  const aiEnabled =
+    aiMode === "enabled"
+      ? true
+      : aiMode === "disabled"
+        ? false
+        : isAiFraudAssessmentEnabled();
+  const aiAssessmentBySession = new Map<
+    string,
+    Awaited<ReturnType<typeof assessFraudRiskWithAi>>
+  >();
+  const aiCandidates: {
+    draft: SessionDraft;
+    baseScored: ReturnType<typeof scoreSession>;
+  }[] = [];
+
+  sessionDrafts.forEach((draft) => {
+    const baseScored = scoreSession(draft.summaryInput, {
+      policy,
+      historicalFeatures: draft.historicalFeatures
+    });
+    baseScoredBySession.set(draft.sessionId, baseScored);
+
+    if (
+      aiEnabled &&
+      shouldRequestAiAssessment(
+        draft.summaryInput,
+        baseScored.currentRiskScore,
+        policy
+      )
+    ) {
+      aiCandidates.push({ draft, baseScored });
+    }
+  });
+
+  if (aiEnabled && aiCandidates.length) {
+    const budget = getAiAssessmentBudget();
+    const candidatesWithinBudget = aiCandidates.slice(0, budget);
+    const assessed = await mapWithConcurrency(
+      candidatesWithinBudget,
+      getAiAssessmentConcurrency(),
+      async ({ draft, baseScored }) => {
+        const aiAssessment = await assessFraudRiskWithAi({
+          sessionId: draft.sessionId,
+          userId: draft.userId,
+          geoRegion: draft.geoRegion,
+          deviceLabel: draft.deviceLabel,
+          summary: draft.summaryInput,
+          historical:
+            draft.historicalFeatures ??
+            baseScored.historicalFeatures,
+          baseRiskScore: baseScored.currentRiskScore,
+          topFlags: baseScored.topFlags
+        });
+
+        return {
+          sessionId: draft.sessionId,
+          aiAssessment
+        };
+      }
+    );
+
+    assessed.forEach(({ sessionId, aiAssessment }) => {
+      if (aiAssessment) {
+        aiAssessmentBySession.set(sessionId, aiAssessment);
+      }
+    });
+  }
+
+  const sessions: FraudSession[] = sessionDrafts.map((draft) => {
+    const baseScored = baseScoredBySession.get(draft.sessionId);
+    const aiAssessment = aiAssessmentBySession.get(draft.sessionId) ?? undefined;
+    const summaryInput =
+      aiAssessment && aiAssessment.confidence >= 0.35
+        ? {
+            ...draft.summaryInput,
+            aiRiskScore: aiAssessment.riskProbability * aiAssessment.confidence
+          }
+        : draft.summaryInput;
+
+    const scored =
+      aiAssessment && aiAssessment.confidence >= 0.35
+        ? scoreSession(summaryInput, {
+            policy,
+            historicalFeatures: draft.historicalFeatures
+          })
+        : baseScored;
+
+    return {
+      sessionId: draft.sessionId,
+      userId: draft.userId,
+      testRunId: draft.testRunId,
+      agentId: draft.agentId,
+      scenarioId: draft.scenarioId,
+      accountId: draft.accountId,
+      accountHolder: draft.accountHolder,
+      deviceLabel: draft.deviceLabel,
+      geoRegion: draft.geoRegion,
+      analystDecision: draft.analystDecision,
+      events: draft.events,
       summary: {
         ...summaryInput,
-        ...scored
+        ...(scored ?? scoreSession(summaryInput, {
+          policy,
+          historicalFeatures: draft.historicalFeatures
+        })),
+        aiAssessment
       }
     };
   });
